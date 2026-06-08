@@ -1,0 +1,151 @@
+<mujoco model="drones3_full_3d">
+  <compiler angle="radian" autolimits="true"/>
+
+  <option timestep="0.025" gravity="0 0 -9.81" integrator="Euler"/>
+  <statistic center="0 0 1.8" extent="7.0"/>
+
+  <asset>
+    <texture name="sky" type="skybox" builtin="flat" rgb1="1 1 1" width="64" height="64"/>
+    <texture
+        name="floor_tex"
+        type="2d"
+        builtin="checker"
+        width="512"
+        height="512"
+        rgb1="0.965 0.970 0.978"
+        rgb2="0.890 0.910 0.930"/>
+    <material name="floor_mat" texture="floor_tex" texrepeat="7 7" texuniform="true" reflectance="0.06"/>
+    <material name="wall_mat" rgba="0.72 0.77 0.84 0.42" specular="0.12" shininess="0.25"/>
+    <material name="ground_obstacle_mat" rgba="0.28 0.20 0.18 0.88" specular="0.10" shininess="0.22"/>
+    <material name="air_hazard_mat" rgba="0.52 0.10 0.74 0.40" specular="0.18" shininess="0.35"/>
+    <material name="air_hazard_core_mat" rgba="0.54 0.08 0.74 0.78" specular="0.12" shininess="0.25"/>
+    <material name="hazard_ring_mat" rgba="1.00 0.76 0.18 0.82" specular="0.16" shininess="0.24"/>
+
+    <material name="drone1_mat" rgba="0.15 0.35 0.78 1" specular="0.36" shininess="0.60"/>
+    <material name="drone2_mat" rgba="0.90 0.40 0.20 1" specular="0.36" shininess="0.60"/>
+    <material name="drone3_mat" rgba="0.22 0.62 0.40 1" specular="0.36" shininess="0.60"/>
+    <material name="drone_dark_mat" rgba="0.08 0.09 0.11 1" specular="0.20" shininess="0.30"/>
+    <material name="rotor_mat" rgba="0.03 0.04 0.05 0.90" specular="0.12" shininess="0.25"/>
+    <material name="thrust_site_mat" rgba="1.0 0.86 0.20 0.55"/>
+
+    <material name="goal1_mat" rgba="0.10 0.62 0.96 0.95" specular="0.20" shininess="0.40"/>
+    <material name="goal2_mat" rgba="0.96 0.54 0.20 0.95" specular="0.20" shininess="0.40"/>
+    <material name="goal3_mat" rgba="0.18 0.78 0.46 0.95" specular="0.20" shininess="0.40"/>
+    <material name="goal_zone_mat" rgba="0.20 0.84 0.62 0.18"/>
+    <material name="start1_mat" rgba="0.34 0.52 0.96 0.28"/>
+    <material name="start2_mat" rgba="0.98 0.56 0.30 0.28"/>
+    <material name="start3_mat" rgba="0.34 0.84 0.54 0.28"/>
+  </asset>
+
+  <default>
+    <geom contype="0" conaffinity="0"/>
+    <site type="sphere" size="0.035"/>
+    <motor ctrllimited="true" ctrlrange="0 8"/>
+  </default>
+
+  <worldbody>
+    <light name="key" pos="-3 -5 7" diffuse="0.95 0.95 0.95" specular="0.22 0.22 0.22"/>
+    <light name="fill" pos="4 5 5" diffuse="0.48 0.50 0.52" specular="0.06 0.06 0.06"/>
+
+    <camera name="angled" mode="fixed" pos="4.9 -7.4 4.3" xyaxes="0.82 0.57 0 -0.34 0.49 0.80"/>
+    <camera name="side" mode="fixed" pos="0 -8.2 2.9" xyaxes="1 0 0 0 0.27 0.96"/>
+    <camera name="top_down" mode="fixed" pos="0 -0.05 8.2" xyaxes="1 0 0 0 1 0"/>
+
+    <geom name="floor" type="plane" pos="0 0 0" size="5.4 5.4 0.1" material="floor_mat"/>
+    <geom name="arena_back" type="box" pos="0 3.35 1.6" size="3.3 0.035 1.6" material="wall_mat"/>
+    <geom name="arena_front" type="box" pos="0 -3.35 1.6" size="3.3 0.035 1.6" material="wall_mat"/>
+    <geom name="arena_left" type="box" pos="-3.35 0 1.6" size="0.035 3.3 1.6" material="wall_mat"/>
+    <geom name="arena_right" type="box" pos="3.35 0 1.6" size="0.035 3.3 1.6" material="wall_mat"/>
+
+    <geom name="ground_barrier_left" type="box" pos="-1.25 -0.75 0.50" size="0.45 0.55 0.50" material="ground_obstacle_mat"/>
+    <geom name="ground_barrier_center" type="box" pos="0.00 -0.55 0.68" size="0.55 0.42 0.68" material="ground_obstacle_mat"/>
+    <geom name="ground_barrier_right" type="box" pos="1.25 -0.75 0.50" size="0.45 0.55 0.50" material="ground_obstacle_mat"/>
+
+    <geom name="air_hazard_left" type="ellipsoid" pos="-1.10 0.95 2.15" size="0.56 0.46 0.38" material="air_hazard_mat"/>
+    <geom name="air_hazard_left_core" type="ellipsoid" pos="-1.10 0.95 2.15" size="0.34 0.28 0.24" material="air_hazard_core_mat"/>
+    <geom name="air_hazard_left_ring" type="cylinder" pos="-1.10 0.95 2.15" size="0.58 0.018" euler="1.5707963268 0 0" material="hazard_ring_mat"/>
+
+    <geom name="air_hazard_right" type="ellipsoid" pos="1.10 0.95 2.55" size="0.56 0.46 0.38" material="air_hazard_mat"/>
+    <geom name="air_hazard_right_core" type="ellipsoid" pos="1.10 0.95 2.55" size="0.34 0.28 0.24" material="air_hazard_core_mat"/>
+    <geom name="air_hazard_right_ring" type="cylinder" pos="1.10 0.95 2.55" size="0.58 0.018" euler="1.5707963268 0 0" material="hazard_ring_mat"/>
+
+    <geom name="start_d1" type="cylinder" pos="-2.2 -2.45 0.014" size="0.34 0.014" material="start1_mat"/>
+    <geom name="start_d2" type="cylinder" pos="0.0 -2.65 0.014" size="0.34 0.014" material="start2_mat"/>
+    <geom name="start_d3" type="cylinder" pos="2.2 -2.45 0.014" size="0.34 0.014" material="start3_mat"/>
+
+    <geom name="goal_d1_zone" type="ellipsoid" pos="2.15 2.35 2.20" size="0.38 0.38 0.38" material="goal_zone_mat"/>
+    <geom name="goal_d1_core" type="sphere" pos="2.15 2.35 2.20" size="0.13" material="goal1_mat"/>
+    <geom name="goal_d2_zone" type="ellipsoid" pos="0.0 2.55 1.55" size="0.38 0.38 0.38" material="goal_zone_mat"/>
+    <geom name="goal_d2_core" type="sphere" pos="0.0 2.55 1.55" size="0.13" material="goal2_mat"/>
+    <geom name="goal_d3_zone" type="ellipsoid" pos="-2.15 2.35 2.45" size="0.38 0.38 0.38" material="goal_zone_mat"/>
+    <geom name="goal_d3_core" type="sphere" pos="-2.15 2.35 2.45" size="0.13" material="goal3_mat"/>
+
+    <body name="drone1" pos="-2.2 -2.45 0.70">
+      <freejoint name="d1_free"/>
+      <inertial pos="0 0 0" mass="1.0" diaginertia="0.032 0.032 0.052"/>
+      <geom name="d1_body" type="ellipsoid" pos="0 0 0" size="0.16 0.12 0.055" material="drone1_mat"/>
+      <geom name="d1_arm_x" type="box" pos="0 0 0" size="0.34 0.030 0.022" material="drone_dark_mat"/>
+      <geom name="d1_arm_y" type="box" pos="0 0 0" size="0.030 0.34 0.022" material="drone_dark_mat"/>
+      <geom name="d1_front_marker" type="box" pos="0 0.22 0.01" size="0.055 0.13 0.024" material="drone1_mat"/>
+      <geom name="d1_fl_rotor" type="cylinder" pos="-0.32 0.32 0.025" size="0.105 0.018" material="rotor_mat"/>
+      <geom name="d1_fr_rotor" type="cylinder" pos="0.32 0.32 0.025" size="0.105 0.018" material="rotor_mat"/>
+      <geom name="d1_rr_rotor" type="cylinder" pos="0.32 -0.32 0.025" size="0.105 0.018" material="rotor_mat"/>
+      <geom name="d1_rl_rotor" type="cylinder" pos="-0.32 -0.32 0.025" size="0.105 0.018" material="rotor_mat"/>
+      <site name="d1_fl_thruster" pos="-0.32 0.32 0.05" material="thrust_site_mat"/>
+      <site name="d1_fr_thruster" pos="0.32 0.32 0.05" material="thrust_site_mat"/>
+      <site name="d1_rr_thruster" pos="0.32 -0.32 0.05" material="thrust_site_mat"/>
+      <site name="d1_rl_thruster" pos="-0.32 -0.32 0.05" material="thrust_site_mat"/>
+    </body>
+
+    <body name="drone2" pos="0 -2.65 0.78">
+      <freejoint name="d2_free"/>
+      <inertial pos="0 0 0" mass="1.0" diaginertia="0.032 0.032 0.052"/>
+      <geom name="d2_body" type="ellipsoid" pos="0 0 0" size="0.16 0.12 0.055" material="drone2_mat"/>
+      <geom name="d2_arm_x" type="box" pos="0 0 0" size="0.34 0.030 0.022" material="drone_dark_mat"/>
+      <geom name="d2_arm_y" type="box" pos="0 0 0" size="0.030 0.34 0.022" material="drone_dark_mat"/>
+      <geom name="d2_front_marker" type="box" pos="0 0.22 0.01" size="0.055 0.13 0.024" material="drone2_mat"/>
+      <geom name="d2_fl_rotor" type="cylinder" pos="-0.32 0.32 0.025" size="0.105 0.018" material="rotor_mat"/>
+      <geom name="d2_fr_rotor" type="cylinder" pos="0.32 0.32 0.025" size="0.105 0.018" material="rotor_mat"/>
+      <geom name="d2_rr_rotor" type="cylinder" pos="0.32 -0.32 0.025" size="0.105 0.018" material="rotor_mat"/>
+      <geom name="d2_rl_rotor" type="cylinder" pos="-0.32 -0.32 0.025" size="0.105 0.018" material="rotor_mat"/>
+      <site name="d2_fl_thruster" pos="-0.32 0.32 0.05" material="thrust_site_mat"/>
+      <site name="d2_fr_thruster" pos="0.32 0.32 0.05" material="thrust_site_mat"/>
+      <site name="d2_rr_thruster" pos="0.32 -0.32 0.05" material="thrust_site_mat"/>
+      <site name="d2_rl_thruster" pos="-0.32 -0.32 0.05" material="thrust_site_mat"/>
+    </body>
+
+    <body name="drone3" pos="2.2 -2.45 0.72">
+      <freejoint name="d3_free"/>
+      <inertial pos="0 0 0" mass="1.0" diaginertia="0.032 0.032 0.052"/>
+      <geom name="d3_body" type="ellipsoid" pos="0 0 0" size="0.16 0.12 0.055" material="drone3_mat"/>
+      <geom name="d3_arm_x" type="box" pos="0 0 0" size="0.34 0.030 0.022" material="drone_dark_mat"/>
+      <geom name="d3_arm_y" type="box" pos="0 0 0" size="0.030 0.34 0.022" material="drone_dark_mat"/>
+      <geom name="d3_front_marker" type="box" pos="0 0.22 0.01" size="0.055 0.13 0.024" material="drone3_mat"/>
+      <geom name="d3_fl_rotor" type="cylinder" pos="-0.32 0.32 0.025" size="0.105 0.018" material="rotor_mat"/>
+      <geom name="d3_fr_rotor" type="cylinder" pos="0.32 0.32 0.025" size="0.105 0.018" material="rotor_mat"/>
+      <geom name="d3_rr_rotor" type="cylinder" pos="0.32 -0.32 0.025" size="0.105 0.018" material="rotor_mat"/>
+      <geom name="d3_rl_rotor" type="cylinder" pos="-0.32 -0.32 0.025" size="0.105 0.018" material="rotor_mat"/>
+      <site name="d3_fl_thruster" pos="-0.32 0.32 0.05" material="thrust_site_mat"/>
+      <site name="d3_fr_thruster" pos="0.32 0.32 0.05" material="thrust_site_mat"/>
+      <site name="d3_rr_thruster" pos="0.32 -0.32 0.05" material="thrust_site_mat"/>
+      <site name="d3_rl_thruster" pos="-0.32 -0.32 0.05" material="thrust_site_mat"/>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <motor name="d1_front_left" site="d1_fl_thruster" gear="0 0 1 0 0 0.035"/>
+    <motor name="d1_front_right" site="d1_fr_thruster" gear="0 0 1 0 0 -0.035"/>
+    <motor name="d1_rear_right" site="d1_rr_thruster" gear="0 0 1 0 0 0.035"/>
+    <motor name="d1_rear_left" site="d1_rl_thruster" gear="0 0 1 0 0 -0.035"/>
+
+    <motor name="d2_front_left" site="d2_fl_thruster" gear="0 0 1 0 0 0.035"/>
+    <motor name="d2_front_right" site="d2_fr_thruster" gear="0 0 1 0 0 -0.035"/>
+    <motor name="d2_rear_right" site="d2_rr_thruster" gear="0 0 1 0 0 0.035"/>
+    <motor name="d2_rear_left" site="d2_rl_thruster" gear="0 0 1 0 0 -0.035"/>
+
+    <motor name="d3_front_left" site="d3_fl_thruster" gear="0 0 1 0 0 0.035"/>
+    <motor name="d3_front_right" site="d3_fr_thruster" gear="0 0 1 0 0 -0.035"/>
+    <motor name="d3_rear_right" site="d3_rr_thruster" gear="0 0 1 0 0 0.035"/>
+    <motor name="d3_rear_left" site="d3_rl_thruster" gear="0 0 1 0 0 -0.035"/>
+  </actuator>
+</mujoco>

@@ -1,0 +1,169 @@
+{
+  "name": "drones3_3d",
+  "description": "Three full 6-DOF quadrotors with 3D goals, ground barriers, and airborne hazards.",
+  "n_agents": 3,
+  "dof_per_entity": 6,
+  "qpos_dim_per_entity": 7,
+  "qvel_dim_per_entity": 6,
+  "controls_per_entity": 4,
+  "position_indices": [0, 1, 2],
+  "quaternion_indices_per_entity": [[3, 4, 5, 6]],
+  "state_labels_per_entity": ["x", "y", "z", "qw", "qx", "qy", "qz", "vx", "vy", "vz", "wx", "wy", "wz"],
+  "control_labels_per_entity": ["collective_thrust", "roll_cmd", "pitch_cmd", "yaw_rate_cmd"],
+  "policy_control_low": [
+    0.0, -0.45, -0.45, -1.2,
+    0.0, -0.45, -0.45, -1.2,
+    0.0, -0.45, -0.45, -1.2
+  ],
+  "policy_control_high": [
+    18.0, 0.45, 0.45, 1.2,
+    18.0, 0.45, 0.45, 1.2,
+    18.0, 0.45, 0.45, 1.2
+  ],
+  "control_interface": {
+    "type": "quadrotor_attitude_mixer",
+    "params": {
+      "arm_length": 0.32,
+      "yaw_reaction_coeff": 0.035,
+      "roll_kp": 1.35,
+      "roll_kd": 0.55,
+      "pitch_kp": 1.35,
+      "pitch_kd": 0.55,
+      "yaw_rate_kp": 0.18,
+      "rotor_min": 0.0,
+      "rotor_max": 8.0,
+      "quaternion_indices": [3, 4, 5, 6],
+      "omega_indices": [10, 11, 12],
+
+      "pre_stab_kp_xy": 0.18,
+      "pre_stab_kd_xy": 0.25,
+      "pre_stab_kp_z": 1.17,
+      "pre_stab_kd_z": 0.6,
+      "pre_stab_max_tilt": 0.18,
+      "pre_stab_max_thrust_delta": 3.0
+          }
+  },
+  "x0": [
+    -2.2, -2.45, 0.70, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+     0.0, -2.65, 0.78, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+     2.2, -2.45, 0.72, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+  ],
+  "xbar": [
+     2.15, 2.35, 2.20, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+     0.0, 2.55, 1.55, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    -2.15, 2.35, 2.45, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+  ],
+  "q_diag_per_entity": [5.0, 5.4, 7.0, 0.0, 2.2, 2.2, 1.1, 0.65, 0.65, 1.05, 1.25, 1.25, 0.85],
+  "init_noise_mask_per_entity": [0.28, 0.24, 0.12, 0.0, 0.035, 0.035, 0.035, 0.04, 0.04, 0.03, 0.03, 0.03, 0.035],
+  "t_end": 320,
+  "learning_rate": 0.000015,
+  "epochs": 12000,
+  "n_xi": 24,
+  "l": 24,
+  "n_traj": 8,
+  "std_ini": 0.08,
+  "min_dist": 0.75,
+  "agent_radius": 0.34,
+  "collision_security_margin": 0.20,
+  "bounds": [-3.05, 3.05, -3.05, 3.05, 0.30, 3.65],
+  "obstacles": [
+    {"center": [-1.25, -0.75, 0.55], "radii": [0.62, 0.72, 0.62], "weight": 1.2},
+    {"center": [0.0, -0.55, 0.72], "radii": [0.72, 0.58, 0.78], "weight": 1.3},
+    {"center": [1.25, -0.75, 0.55], "radii": [0.62, 0.72, 0.62], "weight": 1.2},
+    {"center": [-1.10, 0.95, 2.15], "radii": [0.62, 0.52, 0.44], "weight": 1.0},
+    {"center": [1.10, 0.95, 2.55], "radii": [0.62, 0.52, 0.44], "weight": 1.0}
+  ],
+  "obstacle_threshold_per_agent": 0.006,
+  "pre_stab_K": 0.10,
+  "pre_stab_mode": "quadrotor_position",
+  "pre_stab_control_indices": [],
+  "output_amplification": 0.45,
+  "psi_u_inner_output_gain": 12.0,
+  "std_ini_param": 0.003,
+  "use_sp": false,
+  "qpos_idx": null,
+  "qvel_idx": null,
+  "control_center": [
+    9.81, 0.0, 0.0, 0.0,
+    9.81, 0.0, 0.0, 0.0,
+    9.81, 0.0, 0.0, 0.0
+  ],
+  "task": {
+    "controller_inputs": [
+      {
+        "type": "state_error",
+        "scale": 0.10,
+        "clip": null,
+        "params": {
+          "target": "xbar",
+          "sign": "current_minus_target"
+        }
+      },
+      {
+        "type": "imc_residual",
+        "scale": 1.0,
+        "clip": null,
+        "params": {}
+      }
+    ],
+    "cost_terms": [
+      {
+        "type": "state_l2",
+        "weight": 1.0,
+        "where": "running",
+        "params": {
+          "target": "xbar",
+          "use_Q": true
+        }
+      },
+      {
+        "type": "control_l2",
+        "weight": 0.00005,
+        "where": "running",
+        "params": {}
+      },
+      {
+        "type": "pairwise_distance_barrier",
+        "weight": 120.0,
+        "where": "running",
+        "params": {
+          "min_dist": 0.75
+        }
+      },
+      {
+        "type": "ellipsoid_obstacle",
+        "weight": 2600.0,
+        "where": "running",
+        "params": {}
+      },
+      {
+        "type": "box_bounds",
+        "weight": 2200.0,
+        "where": "running",
+        "params": {}
+      }
+    ],
+    "metrics": [
+      {
+        "type": "collisions",
+        "name": "mean_collisions",
+        "params": {}
+      },
+      {
+        "type": "obstacle_violations",
+        "name": "mean_obstacle_violations",
+        "params": {}
+      },
+      {
+        "type": "min_obstacle_margin",
+        "name": "min_obstacle_margin",
+        "params": {}
+      },
+      {
+        "type": "final_goal_distance",
+        "name": "mean_final_goal_distance",
+        "params": {}
+      }
+    ]
+  }
+}

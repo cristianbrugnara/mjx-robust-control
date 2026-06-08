@@ -1,0 +1,338 @@
+{
+  "name": "intersection3",
+  "description": "Three-car MJX intersection derived from intersection6.",
+  "n_agents": 3,
+  "dof_per_entity": 3,
+  "controls_per_entity": 2,
+  "position_indices": [
+    0,
+    1
+  ],
+  "state_labels_per_entity": [
+    "x",
+    "y",
+    "yaw",
+    "vx",
+    "vy",
+    "omega"
+  ],
+  "control_labels_per_entity": [
+    "drive_force",
+    "steering_angle"
+  ],
+  "policy_control_low": [
+    -3.0, -0.55,
+    -3.0, -0.55,
+    -3.0, -0.55
+  ],
+  "policy_control_high": [
+    5.5, 0.55,
+    5.5, 0.55,
+    5.5, 0.55
+  ],
+  "control_interface": {
+    "type": "bicycle_steering",
+    "params": {
+      "wheelbase": 0.8,
+      "yaw_rate_kp": 1.7,
+      "yaw_rate_damping": 0.35,
+      "yaw_torque_limit": 3.2,
+      "lateral_damping": 8.0,
+      "lateral_force_limit": 10.0,
+      "actuators_per_entity": 3,
+      "yaw_index": 2,
+      "vx_index": 3,
+      "vy_index": 4,
+      "omega_index": 5
+    }
+  },
+  "x0": [
+    -5.2,
+    -0.85,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    5.2,
+    0.85,
+    3.14159,
+    0.0,
+    0.0,
+    0.0,
+    0.85,
+    -5.2,
+    1.5708,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "xbar": [
+    5.2,
+    -0.85,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    -5.2,
+    0.85,
+    3.14159,
+    0.0,
+    0.0,
+    0.0,
+    0.85,
+    5.2,
+    1.5708,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "q_diag_per_entity": [
+    7.0,
+    7.0,
+    1.0,
+    0.32,
+    0.32,
+    0.2
+  ],
+  "init_noise_mask_per_entity": [
+    1.0,
+    1.0,
+    0.08,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "t_end": 520,
+  "learning_rate": 8e-06,
+  "epochs": 28000,
+  "n_xi": 64,
+  "l": 64,
+  "n_traj": 8,
+  "std_ini": 0.04,
+  "min_dist": 0.95,
+  "agent_radius": 0.42,
+  "collision_security_margin": 1.35,
+  "bounds": [
+    -5.7,
+    5.7,
+    -5.7,
+    5.7
+  ],
+  "obstacles": [
+    {
+      "center": [
+        0.0,
+        0.0
+      ],
+      "radii": [
+        1.05,
+        1.05
+      ],
+      "weight": 5.0
+    },
+    {
+      "center": [
+        -2.75,
+        0.0
+      ],
+      "radii": [
+        0.85,
+        0.26
+      ],
+      "weight": 1.2
+    },
+    {
+      "center": [
+        2.75,
+        0.0
+      ],
+      "radii": [
+        0.85,
+        0.26
+      ],
+      "weight": 1.2
+    },
+    {
+      "center": [
+        0.0,
+        -2.75
+      ],
+      "radii": [
+        0.26,
+        0.85
+      ],
+      "weight": 1.2
+    },
+    {
+      "center": [
+        0.0,
+        2.75
+      ],
+      "radii": [
+        0.26,
+        0.85
+      ],
+      "weight": 1.2
+    }
+  ],
+  "obstacle_threshold_per_agent": 0.08,
+  "pre_stab_K": 0.0,
+  "pre_stab_mode": "none",
+  "pre_stab_control_indices": [],
+  "output_amplification": 0.55,
+  "psi_u_inner_output_gain": 10.0,
+  "std_ini_param": 0.0025,
+  "use_sp": false,
+  "qpos_idx": null,
+  "qvel_idx": null,
+  "task": {
+    "controller_inputs": [
+      {
+        "type": "state_error",
+        "scale": 0.12,
+        "clip": 1.0,
+        "params": {
+          "target": "xbar",
+          "sign": "current_minus_target",
+          "zero_indices": [2, 3, 4, 5, 8, 9, 10, 11, 14, 15, 16, 17],
+          "angular_indices": [2, 8, 14]
+        }
+      },
+      {
+        "type": "state",
+        "scale": 0.045,
+        "clip": 1.0,
+        "params": {}
+      },
+      {
+        "type": "imc_residual",
+        "scale": 1.0,
+        "clip": 0.35,
+        "params": {}
+      }
+    ],
+    "cost_terms": [
+      {
+        "type": "state_l2",
+        "weight": 1.0,
+        "where": "running",
+        "params": {
+          "target": "xbar",
+          "use_Q": true,
+          "indices": [0, 1, 6, 7, 12, 13],
+          "angular_indices": [2, 8, 14]
+        }
+      },
+      {
+        "type": "state_l2",
+        "weight": 24.0,
+        "where": "terminal",
+        "params": {
+          "target": "xbar",
+          "use_Q": true,
+          "angular_indices": [2, 8, 14]
+        }
+      },
+      {
+        "type": "control_l2",
+        "weight": 0.00035,
+        "where": "running",
+        "params": {}
+      },
+      {
+        "type": "pairwise_distance_barrier",
+        "weight": 3500.0,
+        "where": "running",
+        "params": {
+          "min_dist": 0.95
+        }
+      },
+      {
+        "type": "ellipsoid_obstacle",
+        "weight": 20000.0,
+        "where": "running",
+        "params": {}
+      },
+      {
+        "type": "box_bounds",
+        "weight": 150000.0,
+        "where": "running",
+        "params": {}
+      },
+      {
+        "type": "road_network",
+        "weight": 140000.0,
+        "where": "running",
+        "params": {
+          "yaw_index": 2,
+          "footprint_points": [
+            [0.0, 0.0],
+            [0.50, 0.0],
+            [-0.50, 0.0],
+            [0.0, 0.27],
+            [0.0, -0.27],
+            [0.50, 0.27],
+            [0.50, -0.27],
+            [-0.50, 0.27],
+            [-0.50, -0.27]
+          ],
+          "shapes": [
+            {
+              "type": "rect",
+              "center": [0.0, 0.0],
+              "half_extents": [6.05, 1.58]
+            },
+            {
+              "type": "rect",
+              "center": [0.0, 0.0],
+              "half_extents": [1.58, 6.05]
+            },
+            {
+              "type": "circle",
+              "center": [0.0, 0.0],
+              "radius": 1.95
+            }
+          ],
+          "margin": -0.05
+        }
+      },
+      {
+        "type": "planar_heading_velocity",
+        "weight": 1800.0,
+        "where": "running",
+        "params": {
+          "yaw_index": 2,
+          "velocity_indices": [3, 4],
+          "omega_index": 5,
+          "lateral_weight": 8.0,
+          "reverse_weight": 1.4,
+          "min_forward_speed": 0.28,
+          "active_distance_threshold": 0.75,
+          "spin_weight": 0.18
+        }
+      }
+    ],
+    "metrics": [
+      {
+        "type": "collisions",
+        "name": "mean_collisions",
+        "params": {}
+      },
+      {
+        "type": "obstacle_violations",
+        "name": "mean_obstacle_violations",
+        "params": {}
+      },
+      {
+        "type": "min_obstacle_margin",
+        "name": "min_obstacle_margin",
+        "params": {}
+      },
+      {
+        "type": "final_goal_distance",
+        "name": "mean_final_goal_distance",
+        "params": {}
+      }
+    ]
+  }
+}

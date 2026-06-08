@@ -1,0 +1,216 @@
+<mujoco model="intersection3">
+  <compiler angle="radian" autolimits="true"/>
+
+  <option timestep="0.04" gravity="0 0 0" integrator="Euler"/>
+  <statistic center="0 0 0.60" extent="8.8"/>
+
+  <asset>
+    <texture name="sky" type="skybox" builtin="flat" rgb1="0.96 0.98 1.0" width="64" height="64"/>
+    <texture name="floor_tex" type="2d" builtin="checker" width="256" height="256" rgb1="0.86 0.87 0.84" rgb2="0.79 0.80 0.77"/>
+    <material name="floor_mat" texture="floor_tex" texrepeat="10 10" texuniform="true" reflectance="0.04" specular="0.03" shininess="0.05"/>
+    <material name="road_mat" rgba="0.17 0.18 0.19 1" specular="0.07" shininess="0.10"/>
+    <material name="apron_mat" rgba="0.13 0.14 0.15 1" specular="0.06" shininess="0.10"/>
+    <material name="lane_mat" rgba="0.92 0.93 0.90 0.75"/>
+    <material name="island_mat" rgba="0.18 0.43 0.24 1" specular="0.08" shininess="0.16"/>
+    <material name="soft_keepout_mat" rgba="0.22 0.50 0.28 0.55"/>
+    <material name="wall_mat" rgba="0.72 0.74 0.76 1" specular="0.06" shininess="0.16"/>
+    <material name="shadow_mat" rgba="0.02 0.02 0.03 0.15"/>
+    <material name="glass_mat" rgba="0.45 0.65 0.82 0.55" specular="0.25" shininess="0.45"/>
+    <material name="tire_mat" rgba="0.015 0.016 0.018 1" specular="0.10" shininess="0.20"/>
+    <material name="rim_mat" rgba="0.78 0.80 0.78 1" specular="0.22" shininess="0.30"/>
+    <material name="headlight_mat" rgba="1.00 0.92 0.55 1" emission="0.18"/>
+    <material name="taillight_mat" rgba="0.95 0.05 0.04 1" emission="0.12"/>
+    <material name="trim_mat" rgba="0.035 0.040 0.045 1" specular="0.10" shininess="0.20"/>
+    <material name="drive_site_mat" rgba="1.0 0.86 0.22 0.40"/>
+    <material name="car1_mat" rgba="0.12 0.36 0.90 1" specular="0.25" shininess="0.45"/>
+    <material name="start1_mat" rgba="0.12 0.36 0.90 0.18"/>
+    <material name="goal1_mat" rgba="0.12 0.36 0.90 0.42"/>
+    <material name="car2_mat" rgba="0.90 0.25 0.18 1" specular="0.25" shininess="0.45"/>
+    <material name="start2_mat" rgba="0.90 0.25 0.18 0.18"/>
+    <material name="goal2_mat" rgba="0.90 0.25 0.18 0.42"/>
+    <material name="car3_mat" rgba="0.10 0.62 0.34 1" specular="0.25" shininess="0.45"/>
+    <material name="start3_mat" rgba="0.10 0.62 0.34 0.18"/>
+    <material name="goal3_mat" rgba="0.10 0.62 0.34 0.42"/>
+  </asset>
+
+  <default>
+    <geom contype="0" conaffinity="0"/>
+    <site type="sphere" size="0.035"/>
+  </default>
+
+  <worldbody>
+    <light name="key" pos="-3 -4 8" diffuse="0.92 0.92 0.92" specular="0.18 0.18 0.18"/>
+    <camera name="top_down" mode="fixed" pos="0 0 13.0" xyaxes="1 0 0 0 1 0"/>
+    <camera name="angle" mode="fixed" pos="0 -8.4 6.8" xyaxes="1 0 0 0 0.64 0.77"/>
+
+    <geom name="floor" type="plane" pos="0 0 0" size="8.0 8.0 0.1" material="floor_mat"/>
+
+    <geom name="road_horizontal" type="box" pos="0 0 0.010" size="6.05 1.58 0.010" material="road_mat"/>
+    <geom name="road_vertical" type="box" pos="0 0 0.012" size="1.58 6.05 0.010" material="road_mat"/>
+    <geom name="roundabout_apron" type="cylinder" pos="0 0 0.018" size="1.95 0.010" material="apron_mat"/>
+
+    <geom name="center_line_h_w" type="box" pos="-3.4 0 0.045" size="1.45 0.025 0.006" material="lane_mat"/>
+    <geom name="center_line_h_e" type="box" pos="3.4 0 0.045" size="1.45 0.025 0.006" material="lane_mat"/>
+    <geom name="center_line_v_s" type="box" pos="0 -3.4 0.045" size="0.025 1.45 0.006" material="lane_mat"/>
+    <geom name="center_line_v_n" type="box" pos="0 3.4 0.045" size="0.025 1.45 0.006" material="lane_mat"/>
+
+    <geom name="wall_w" type="box" pos="-6.05 0 0.35" size="0.055 6.05 0.35" material="wall_mat"/>
+    <geom name="wall_e" type="box" pos="6.05 0 0.35" size="0.055 6.05 0.35" material="wall_mat"/>
+    <geom name="wall_s" type="box" pos="0 -6.05 0.35" size="6.05 0.055 0.35" material="wall_mat"/>
+    <geom name="wall_n" type="box" pos="0 6.05 0.35" size="6.05 0.055 0.35" material="wall_mat"/>
+
+    <geom name="central_island" type="cylinder" pos="0 0 0.070" size="0.88 0.060" material="island_mat"/>
+    <geom name="offroad_nw_pad" type="box" pos="-3.82 3.82 0.006" size="2.22 2.22 0.004" material="soft_keepout_mat"/>
+    <geom name="offroad_ne_pad" type="box" pos="3.82 3.82 0.006" size="2.22 2.22 0.004" material="soft_keepout_mat"/>
+    <geom name="offroad_sw_pad" type="box" pos="-3.82 -3.82 0.006" size="2.22 2.22 0.004" material="soft_keepout_mat"/>
+    <geom name="offroad_se_pad" type="box" pos="3.82 -3.82 0.006" size="2.22 2.22 0.004" material="soft_keepout_mat"/>
+    <geom name="offroad_nw_core" type="ellipsoid" pos="-4.05 4.05 0.040" size="1.60 1.60 0.040" material="soft_keepout_mat"/>
+    <geom name="offroad_ne_core" type="ellipsoid" pos="4.05 4.05 0.040" size="1.60 1.60 0.040" material="soft_keepout_mat"/>
+    <geom name="offroad_sw_core" type="ellipsoid" pos="-4.05 -4.05 0.040" size="1.60 1.60 0.040" material="soft_keepout_mat"/>
+    <geom name="offroad_se_core" type="ellipsoid" pos="4.05 -4.05 0.040" size="1.60 1.60 0.040" material="soft_keepout_mat"/>
+
+    <geom name="start_car1" type="box" pos="-5.200 -0.850 0.050" size="0.500 0.300 0.010" material="start1_mat" euler="0 0 0.00000"/>
+    <geom name="goal_car1" type="box" pos="5.200 -0.850 0.066" size="0.500 0.300 0.012" material="goal1_mat" euler="0 0 0.00000"/>
+    <geom name="start_car2" type="box" pos="5.200 0.850 0.050" size="0.500 0.300 0.010" material="start2_mat" euler="0 0 3.14159"/>
+    <geom name="goal_car2" type="box" pos="-5.200 0.850 0.066" size="0.500 0.300 0.012" material="goal2_mat" euler="0 0 3.14159"/>
+    <geom name="start_car3" type="box" pos="0.850 -5.200 0.050" size="0.500 0.300 0.010" material="start3_mat" euler="0 0 1.57080"/>
+    <geom name="goal_car3" type="box" pos="0.850 5.200 0.066" size="0.500 0.300 0.012" material="goal3_mat" euler="0 0 1.57080"/>
+
+    <body name="car1" pos="0 0 0.180">
+      <inertial pos="0 0 0" mass="1.20" diaginertia="0.050 0.050 0.080"/>
+      <joint name="car1_x" type="slide" axis="1 0 0" limited="false" damping="0.55" armature="0.020"/>
+      <joint name="car1_y" type="slide" axis="0 1 0" limited="false" damping="0.55" armature="0.020"/>
+      <joint name="car1_yaw" type="hinge" axis="0 0 1" limited="false" damping="0.35" armature="0.012"/>
+
+      <!-- Clear simple car silhouette: sedan-style skin built only from MuJoCo primitives. -->
+      <geom name="car1_shadow" type="ellipsoid" pos="0 0 -0.172" size="0.54 0.31 0.006" material="shadow_mat"/>
+
+      <geom name="car1_lower_body" type="box" pos="0.000 0 0.000" size="0.430 0.210 0.050" material="car1_mat"/>
+      <geom name="car1_hood" type="box" pos="0.245 0 0.045" size="0.175 0.190 0.030" material="car1_mat"/>
+      <geom name="car1_trunk" type="box" pos="-0.285 0 0.040" size="0.115 0.185 0.027" material="car1_mat"/>
+      <geom name="car1_front_bumper" type="box" pos="0.455 0 0.012" size="0.035 0.205 0.032" material="trim_mat"/>
+      <geom name="car1_rear_bumper" type="box" pos="-0.455 0 0.012" size="0.035 0.205 0.032" material="trim_mat"/>
+
+      <geom name="car1_windshield" type="box" pos="0.070 0 0.086" size="0.075 0.145 0.022" material="glass_mat"/>
+      <geom name="car1_roof" type="box" pos="-0.050 0 0.105" size="0.105 0.135 0.035" material="car1_mat"/>
+      <geom name="car1_rear_window" type="box" pos="-0.175 0 0.084" size="0.070 0.140 0.020" material="glass_mat"/>
+      <geom name="car1_left_window" type="box" pos="-0.050 0.142 0.092" size="0.100 0.012 0.020" material="glass_mat"/>
+      <geom name="car1_right_window" type="box" pos="-0.050 -0.142 0.092" size="0.100 0.012 0.020" material="glass_mat"/>
+
+      <geom name="car1_wheel_fl" type="cylinder" pos="0.245 0.230 -0.005" size="0.060 0.040" material="tire_mat" euler="1.5708 0 0"/>
+      <geom name="car1_wheel_fr" type="cylinder" pos="0.245 -0.230 -0.005" size="0.060 0.040" material="tire_mat" euler="1.5708 0 0"/>
+      <geom name="car1_wheel_rl" type="cylinder" pos="-0.265 0.230 -0.005" size="0.060 0.040" material="tire_mat" euler="1.5708 0 0"/>
+      <geom name="car1_wheel_rr" type="cylinder" pos="-0.265 -0.230 -0.005" size="0.060 0.040" material="tire_mat" euler="1.5708 0 0"/>
+      <geom name="car1_hub_fl" type="cylinder" pos="0.245 0.234 -0.005" size="0.030 0.006" material="rim_mat" euler="1.5708 0 0"/>
+      <geom name="car1_hub_fr" type="cylinder" pos="0.245 -0.234 -0.005" size="0.030 0.006" material="rim_mat" euler="1.5708 0 0"/>
+      <geom name="car1_hub_rl" type="cylinder" pos="-0.265 0.234 -0.005" size="0.030 0.006" material="rim_mat" euler="1.5708 0 0"/>
+      <geom name="car1_hub_rr" type="cylinder" pos="-0.265 -0.234 -0.005" size="0.030 0.006" material="rim_mat" euler="1.5708 0 0"/>
+
+      <geom name="car1_headlight_l" type="box" pos="0.494 0.090 0.035" size="0.010 0.040 0.012" material="headlight_mat"/>
+      <geom name="car1_headlight_r" type="box" pos="0.494 -0.090 0.035" size="0.010 0.040 0.012" material="headlight_mat"/>
+      <geom name="car1_taillight_l" type="box" pos="-0.494 0.080 0.032" size="0.010 0.035 0.012" material="taillight_mat"/>
+      <geom name="car1_taillight_r" type="box" pos="-0.494 -0.080 0.032" size="0.010 0.035 0.012" material="taillight_mat"/>
+      <geom name="car1_side_trim_l" type="box" pos="0.000 0.214 0.032" size="0.320 0.008 0.010" material="trim_mat"/>
+      <geom name="car1_side_trim_r" type="box" pos="0.000 -0.214 0.032" size="0.320 0.008 0.010" material="trim_mat"/>
+
+      <site name="car1_drive_site" pos="0 0 0.030" size="0.040" material="drive_site_mat"/>
+      <site name="car1_center" pos="0 0 0.125" size="0.035" rgba="1 1 1 0.48"/>
+    </body>
+    <body name="car2" pos="0 0 0.180">
+      <inertial pos="0 0 0" mass="1.20" diaginertia="0.050 0.050 0.080"/>
+      <joint name="car2_x" type="slide" axis="1 0 0" limited="false" damping="0.55" armature="0.020"/>
+      <joint name="car2_y" type="slide" axis="0 1 0" limited="false" damping="0.55" armature="0.020"/>
+      <joint name="car2_yaw" type="hinge" axis="0 0 1" limited="false" damping="0.35" armature="0.012"/>
+
+      <!-- Clear simple car silhouette: sedan-style skin built only from MuJoCo primitives. -->
+      <geom name="car2_shadow" type="ellipsoid" pos="0 0 -0.172" size="0.54 0.31 0.006" material="shadow_mat"/>
+
+      <geom name="car2_lower_body" type="box" pos="0.000 0 0.000" size="0.430 0.210 0.050" material="car2_mat"/>
+      <geom name="car2_hood" type="box" pos="0.245 0 0.045" size="0.175 0.190 0.030" material="car2_mat"/>
+      <geom name="car2_trunk" type="box" pos="-0.285 0 0.040" size="0.115 0.185 0.027" material="car2_mat"/>
+      <geom name="car2_front_bumper" type="box" pos="0.455 0 0.012" size="0.035 0.205 0.032" material="trim_mat"/>
+      <geom name="car2_rear_bumper" type="box" pos="-0.455 0 0.012" size="0.035 0.205 0.032" material="trim_mat"/>
+
+      <geom name="car2_windshield" type="box" pos="0.070 0 0.086" size="0.075 0.145 0.022" material="glass_mat"/>
+      <geom name="car2_roof" type="box" pos="-0.050 0 0.105" size="0.105 0.135 0.035" material="car2_mat"/>
+      <geom name="car2_rear_window" type="box" pos="-0.175 0 0.084" size="0.070 0.140 0.020" material="glass_mat"/>
+      <geom name="car2_left_window" type="box" pos="-0.050 0.142 0.092" size="0.100 0.012 0.020" material="glass_mat"/>
+      <geom name="car2_right_window" type="box" pos="-0.050 -0.142 0.092" size="0.100 0.012 0.020" material="glass_mat"/>
+
+      <geom name="car2_wheel_fl" type="cylinder" pos="0.245 0.230 -0.005" size="0.060 0.040" material="tire_mat" euler="1.5708 0 0"/>
+      <geom name="car2_wheel_fr" type="cylinder" pos="0.245 -0.230 -0.005" size="0.060 0.040" material="tire_mat" euler="1.5708 0 0"/>
+      <geom name="car2_wheel_rl" type="cylinder" pos="-0.265 0.230 -0.005" size="0.060 0.040" material="tire_mat" euler="1.5708 0 0"/>
+      <geom name="car2_wheel_rr" type="cylinder" pos="-0.265 -0.230 -0.005" size="0.060 0.040" material="tire_mat" euler="1.5708 0 0"/>
+      <geom name="car2_hub_fl" type="cylinder" pos="0.245 0.234 -0.005" size="0.030 0.006" material="rim_mat" euler="1.5708 0 0"/>
+      <geom name="car2_hub_fr" type="cylinder" pos="0.245 -0.234 -0.005" size="0.030 0.006" material="rim_mat" euler="1.5708 0 0"/>
+      <geom name="car2_hub_rl" type="cylinder" pos="-0.265 0.234 -0.005" size="0.030 0.006" material="rim_mat" euler="1.5708 0 0"/>
+      <geom name="car2_hub_rr" type="cylinder" pos="-0.265 -0.234 -0.005" size="0.030 0.006" material="rim_mat" euler="1.5708 0 0"/>
+
+      <geom name="car2_headlight_l" type="box" pos="0.494 0.090 0.035" size="0.010 0.040 0.012" material="headlight_mat"/>
+      <geom name="car2_headlight_r" type="box" pos="0.494 -0.090 0.035" size="0.010 0.040 0.012" material="headlight_mat"/>
+      <geom name="car2_taillight_l" type="box" pos="-0.494 0.080 0.032" size="0.010 0.035 0.012" material="taillight_mat"/>
+      <geom name="car2_taillight_r" type="box" pos="-0.494 -0.080 0.032" size="0.010 0.035 0.012" material="taillight_mat"/>
+      <geom name="car2_side_trim_l" type="box" pos="0.000 0.214 0.032" size="0.320 0.008 0.010" material="trim_mat"/>
+      <geom name="car2_side_trim_r" type="box" pos="0.000 -0.214 0.032" size="0.320 0.008 0.010" material="trim_mat"/>
+
+      <site name="car2_drive_site" pos="0 0 0.030" size="0.040" material="drive_site_mat"/>
+      <site name="car2_center" pos="0 0 0.125" size="0.035" rgba="1 1 1 0.48"/>
+    </body>
+    <body name="car3" pos="0 0 0.180">
+      <inertial pos="0 0 0" mass="1.20" diaginertia="0.050 0.050 0.080"/>
+      <joint name="car3_x" type="slide" axis="1 0 0" limited="false" damping="0.55" armature="0.020"/>
+      <joint name="car3_y" type="slide" axis="0 1 0" limited="false" damping="0.55" armature="0.020"/>
+      <joint name="car3_yaw" type="hinge" axis="0 0 1" limited="false" damping="0.35" armature="0.012"/>
+
+      <!-- Clear simple car silhouette: sedan-style skin built only from MuJoCo primitives. -->
+      <geom name="car3_shadow" type="ellipsoid" pos="0 0 -0.172" size="0.54 0.31 0.006" material="shadow_mat"/>
+
+      <geom name="car3_lower_body" type="box" pos="0.000 0 0.000" size="0.430 0.210 0.050" material="car3_mat"/>
+      <geom name="car3_hood" type="box" pos="0.245 0 0.045" size="0.175 0.190 0.030" material="car3_mat"/>
+      <geom name="car3_trunk" type="box" pos="-0.285 0 0.040" size="0.115 0.185 0.027" material="car3_mat"/>
+      <geom name="car3_front_bumper" type="box" pos="0.455 0 0.012" size="0.035 0.205 0.032" material="trim_mat"/>
+      <geom name="car3_rear_bumper" type="box" pos="-0.455 0 0.012" size="0.035 0.205 0.032" material="trim_mat"/>
+
+      <geom name="car3_windshield" type="box" pos="0.070 0 0.086" size="0.075 0.145 0.022" material="glass_mat"/>
+      <geom name="car3_roof" type="box" pos="-0.050 0 0.105" size="0.105 0.135 0.035" material="car3_mat"/>
+      <geom name="car3_rear_window" type="box" pos="-0.175 0 0.084" size="0.070 0.140 0.020" material="glass_mat"/>
+      <geom name="car3_left_window" type="box" pos="-0.050 0.142 0.092" size="0.100 0.012 0.020" material="glass_mat"/>
+      <geom name="car3_right_window" type="box" pos="-0.050 -0.142 0.092" size="0.100 0.012 0.020" material="glass_mat"/>
+
+      <geom name="car3_wheel_fl" type="cylinder" pos="0.245 0.230 -0.005" size="0.060 0.040" material="tire_mat" euler="1.5708 0 0"/>
+      <geom name="car3_wheel_fr" type="cylinder" pos="0.245 -0.230 -0.005" size="0.060 0.040" material="tire_mat" euler="1.5708 0 0"/>
+      <geom name="car3_wheel_rl" type="cylinder" pos="-0.265 0.230 -0.005" size="0.060 0.040" material="tire_mat" euler="1.5708 0 0"/>
+      <geom name="car3_wheel_rr" type="cylinder" pos="-0.265 -0.230 -0.005" size="0.060 0.040" material="tire_mat" euler="1.5708 0 0"/>
+      <geom name="car3_hub_fl" type="cylinder" pos="0.245 0.234 -0.005" size="0.030 0.006" material="rim_mat" euler="1.5708 0 0"/>
+      <geom name="car3_hub_fr" type="cylinder" pos="0.245 -0.234 -0.005" size="0.030 0.006" material="rim_mat" euler="1.5708 0 0"/>
+      <geom name="car3_hub_rl" type="cylinder" pos="-0.265 0.234 -0.005" size="0.030 0.006" material="rim_mat" euler="1.5708 0 0"/>
+      <geom name="car3_hub_rr" type="cylinder" pos="-0.265 -0.234 -0.005" size="0.030 0.006" material="rim_mat" euler="1.5708 0 0"/>
+
+      <geom name="car3_headlight_l" type="box" pos="0.494 0.090 0.035" size="0.010 0.040 0.012" material="headlight_mat"/>
+      <geom name="car3_headlight_r" type="box" pos="0.494 -0.090 0.035" size="0.010 0.040 0.012" material="headlight_mat"/>
+      <geom name="car3_taillight_l" type="box" pos="-0.494 0.080 0.032" size="0.010 0.035 0.012" material="taillight_mat"/>
+      <geom name="car3_taillight_r" type="box" pos="-0.494 -0.080 0.032" size="0.010 0.035 0.012" material="taillight_mat"/>
+      <geom name="car3_side_trim_l" type="box" pos="0.000 0.214 0.032" size="0.320 0.008 0.010" material="trim_mat"/>
+      <geom name="car3_side_trim_r" type="box" pos="0.000 -0.214 0.032" size="0.320 0.008 0.010" material="trim_mat"/>
+
+      <site name="car3_drive_site" pos="0 0 0.030" size="0.040" material="drive_site_mat"/>
+      <site name="car3_center" pos="0 0 0.125" size="0.035" rgba="1 1 1 0.48"/>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <motor name="car1_drive_force" site="car1_drive_site" gear="1 0 0 0 0 0" ctrllimited="true" ctrlrange="-3.0 5.5"/>
+    <motor name="car1_yaw_torque" joint="car1_yaw" gear="1" ctrllimited="true" ctrlrange="-3.2 3.2"/>
+    <motor name="car1_lateral_tire_force" site="car1_drive_site" gear="0 1 0 0 0 0" ctrllimited="true" ctrlrange="-10.0 10.0"/>
+    <motor name="car2_drive_force" site="car2_drive_site" gear="1 0 0 0 0 0" ctrllimited="true" ctrlrange="-3.0 5.5"/>
+    <motor name="car2_yaw_torque" joint="car2_yaw" gear="1" ctrllimited="true" ctrlrange="-3.2 3.2"/>
+    <motor name="car2_lateral_tire_force" site="car2_drive_site" gear="0 1 0 0 0 0" ctrllimited="true" ctrlrange="-10.0 10.0"/>
+    <motor name="car3_drive_force" site="car3_drive_site" gear="1 0 0 0 0 0" ctrllimited="true" ctrlrange="-3.0 5.5"/>
+    <motor name="car3_yaw_torque" joint="car3_yaw" gear="1" ctrllimited="true" ctrlrange="-3.2 3.2"/>
+    <motor name="car3_lateral_tire_force" site="car3_drive_site" gear="0 1 0 0 0 0" ctrllimited="true" ctrlrange="-10.0 10.0"/>
+  </actuator>
+
+  <keyframe>
+    <key name="starts" qpos="-5.20000 -0.85000 0.00000 5.20000 0.85000 3.14159 0.85000 -5.20000 1.57080" ctrl="0 0 0 0 0 0 0 0 0"/>
+  </keyframe>
+</mujoco>

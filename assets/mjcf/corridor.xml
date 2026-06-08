@@ -1,0 +1,116 @@
+<mujoco model="corridor_two_point_masses_2d_visual_tighter">
+  <compiler angle="radian" autolimits="true"/>
+  <option timestep="0.05" gravity="0 0 0" integrator="Euler"/>
+
+  <statistic center="0 0 0.6" extent="8.2"/>
+
+  <asset>
+    <texture name="sky" type="skybox" builtin="flat" rgb1="1 1 1" width="64" height="64"/>
+    <texture
+        name="floor_tex"
+        type="2d"
+        builtin="checker"
+        width="512"
+        height="512"
+        rgb1="0.965 0.965 0.970"
+        rgb2="0.905 0.915 0.930"/>
+    <material
+        name="floor_mat"
+        texture="floor_tex"
+        texrepeat="6 12"
+        texuniform="true"
+        reflectance="0.06"
+        shininess="0.05"
+        specular="0.05"/>
+    <material name="wall_mat" rgba="0.82 0.85 0.89 1" specular="0.10" shininess="0.25"/>
+    <material name="glass_mat" rgba="0.70 0.82 0.92 0.18" specular="0.25" shininess="0.40"/>
+
+
+    <material name="obstacle_outer_mat" rgba="0 0 0 0.13"/>
+    <material name="obstacle_mid_mat" rgba="0 0 0 0.24"/>
+    <material name="obstacle_core_mat" rgba="0 0 0 0.82" specular="0.08" shininess="0.05"/>
+
+    <material name="agent1_mat" rgba="0.18 0.36 0.78 1" specular="0.40" shininess="0.65"/>
+    <material name="agent2_mat" rgba="0.88 0.40 0.22 1" specular="0.40" shininess="0.65"/>
+    <material name="agent1_shadow_mat" rgba="0.18 0.36 0.78 0.20"/>
+    <material name="agent2_shadow_mat" rgba="0.88 0.40 0.22 0.20"/>
+
+    <material name="goal1_mat" rgba="0.18 0.70 0.45 0.95" specular="0.20" shininess="0.40"/>
+    <material name="goal2_mat" rgba="0.15 0.64 0.58 0.95" specular="0.20" shininess="0.40"/>
+    <material name="goal_zone_mat" rgba="0.23 0.83 0.58 0.18"/>
+    <!-- <material name="start1_mat" rgba="0.38 0.54 0.96 0.28"/>
+    <material name="start2_mat" rgba="0.98 0.58 0.33 0.28"/> -->
+  </asset>
+
+  <default>
+    <joint type="slide" limited="false" damping="1.0" armature="0.0"/>
+
+    <geom contype="0" conaffinity="0"/>
+    <motor ctrllimited="true" ctrlrange="-5 5"/>
+    <default class="agent">
+      <geom type="sphere" size="0.34"/>
+    </default>
+  </default>
+
+  <worldbody>
+    <light name="key" pos="0 -5 9" diffuse="0.95 0.95 0.95" specular="0.20 0.20 0.20"/>
+    <light name="fill" pos="0 6 7" diffuse="0.55 0.55 0.55" specular="0.08 0.08 0.08"/>
+
+    <camera name="top_down" mode="fixed" pos="0 -0.05 13.0" xyaxes="1 0 0 0 1 0"/>
+    <camera name="angled" mode="fixed" pos="0 -8.0 7.5" xyaxes="1 0 0 0 0.66 0.75"/>
+
+    <geom name="floor" type="plane" pos="0 0 0" size="9 14 0.1" material="floor_mat"/>
+
+    <geom name="wall_left_core" type="box" pos="-3.10 0 0.55" size="0.05 6.15 0.55" material="wall_mat"/>
+    <geom name="wall_right_core" type="box" pos="3.10 0 0.55" size="0.05 6.15 0.55" material="wall_mat"/>
+    <geom name="wall_bottom_core" type="box" pos="0 -6.10 0.55" size="3.15 0.05 0.55" material="wall_mat"/>
+    <geom name="wall_top_core" type="box" pos="0 6.10 0.55" size="3.15 0.05 0.55" material="wall_mat"/>
+
+    <geom name="wall_left_glass" type="box" pos="-3.10 0 1.45" size="0.035 6.15 0.35" material="glass_mat"/>
+    <geom name="wall_right_glass" type="box" pos="3.10 0 1.45" size="0.035 6.15 0.35" material="glass_mat"/>
+    <geom name="wall_bottom_glass" type="box" pos="0 -6.10 1.45" size="3.15 0.035 0.35" material="glass_mat"/>
+    <geom name="wall_top_glass" type="box" pos="0 6.10 1.45" size="3.15 0.035 0.35" material="glass_mat"/>
+<!-- 
+    <geom name="start_agent1" type="cylinder" pos="2 -2 0.004" size="0.90 0.004" material="start1_mat"/>
+    <geom name="start_agent2" type="cylinder" pos="-2 -2 0.004" size="0.90 0.004" material="start2_mat"/> -->
+
+    <geom name="goal_agent1_zone" type="cylinder" pos="-2 2 0.006" size="0.55 0.006" material="goal_zone_mat"/>
+    <geom name="goal_agent1_core" type="cylinder" pos="-2 2 0.022" size="0.22 0.022" material="goal1_mat"/>
+    <geom name="goal_agent2_zone" type="cylinder" pos="2 2 0.006" size="0.55 0.006" material="goal_zone_mat"/>
+    <geom name="goal_agent2_core" type="cylinder" pos="2 2 0.022" size="0.22 0.022" material="goal2_mat"/>
+
+
+    <geom name="obst_left_outer" type="ellipsoid" pos="-2.0 0 0.014" size="1.18 0.42 0.014" material="obstacle_outer_mat"/>
+    <geom name="obst_left_mid" type="ellipsoid" pos="-2.0 0 0.030" size="0.98 0.32 0.020" material="obstacle_mid_mat"/>
+    <geom name="obst_left_core" type="ellipsoid" pos="-2.0 0 0.056" size="0.78 0.22 0.035" material="obstacle_core_mat"/>
+
+    <geom name="obst_right_outer" type="ellipsoid" pos="2.0 0 0.014" size="1.18 0.42 0.014" material="obstacle_outer_mat"/>
+    <geom name="obst_right_mid" type="ellipsoid" pos="2.0 0 0.030" size="0.98 0.32 0.020" material="obstacle_mid_mat"/>
+    <geom name="obst_right_core" type="ellipsoid" pos="2.0 0 0.056" size="0.78 0.22 0.035" material="obstacle_core_mat"/>
+
+    <body name="agent1" pos="0 0 0.34">
+      <inertial pos="0 0 0" mass="1.0" diaginertia="0.01 0.01 0.01"/>
+      <joint name="a1_x" axis="1 0 0"/>
+      <joint name="a1_y" axis="0 1 0"/>
+      <geom name="a1_shadow" type="cylinder" pos="0 0 -0.332" size="0.42 0.004" material="agent1_shadow_mat"/>
+      <geom class="agent" name="a1_geom" material="agent1_mat"/>
+      <site name="a1_center" pos="0 0 0" size="0.045" rgba="1 1 1 0.45"/>
+    </body>
+
+    <body name="agent2" pos="0 0 0.34">
+      <inertial pos="0 0 0" mass="1.0" diaginertia="0.01 0.01 0.01"/>
+      <joint name="a2_x" axis="1 0 0"/>
+      <joint name="a2_y" axis="0 1 0"/>
+      <geom name="a2_shadow" type="cylinder" pos="0 0 -0.332" size="0.42 0.004" material="agent2_shadow_mat"/>
+      <geom class="agent" name="a2_geom" material="agent2_mat"/>
+      <site name="a2_center" pos="0 0 0" size="0.045" rgba="1 1 1 0.45"/>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <motor name="u_a1_x" joint="a1_x" gear="1"/>
+    <motor name="u_a1_y" joint="a1_y" gear="1"/>
+    <motor name="u_a2_x" joint="a2_x" gear="1"/>
+    <motor name="u_a2_y" joint="a2_y" gear="1"/>
+  </actuator>
+</mujoco>

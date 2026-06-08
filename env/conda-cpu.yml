@@ -1,0 +1,15 @@
+name: jaxmjx
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+      - equinox==0.13.7
+      - jax==0.10.0
+      - matplotlib==3.10.8
+      - mujoco==3.7.0
+      - mujoco-mjx==3.7.0
+      - numpy==2.4.4
+      - optax==0.2.8
+      - tqdm==4.67.3

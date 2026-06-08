@@ -1,0 +1,115 @@
+{
+  "name": "corridor",
+  "description": "Two agents crossing a corridor with swapped targets.",
+  "n_agents": 2,
+  "dof_per_entity": 2,
+  "controls_per_entity": 2,
+  "position_indices": [0, 1],
+  "state_labels_per_entity": ["qx", "qy", "vx", "vy"],
+  "control_labels_per_entity": ["fx", "fy"],
+  "x0": [2.0, -2.0, 0.0, 0.0, -2.0, -2.0, 0.0, 0.0],
+  "xbar": [-2.0, 2.0, 0.0, 0.0, 2.0, 2.0, 0.0, 0.0],
+  "q_diag_per_entity": [1.0, 1.0, 1.0, 1.0],
+  "init_noise_mask_per_entity": [1.0, 1.0, 0.0, 0.0],
+  "t_end": 100,
+  "learning_rate": 0.0001,
+  "epochs": 5000,
+  "n_xi": 8,
+  "l": 8,
+  "n_traj": 5,
+  "std_ini": 0.5,
+  "min_dist": 1.15,
+  "agent_radius": 0.55,
+  "collision_security_margin": 0.15,
+  "bounds": [-3.0, 3.0, -6.0, 6.0],
+  "obstacles": [
+    {"center": [-2.0, 0.0], "radii": [1.05, 0.5], "weight": 1.0},
+    {"center": [2.0, 0.0], "radii": [1.05, 0.5], "weight": 1.0}
+  ],
+  "obstacle_threshold_per_agent": 0.004,
+  "pre_stab_K": 1.0,
+  "pre_stab_mode": "direct_position",
+  "pre_stab_control_indices": [0, 1],
+  "output_amplification": 1.0,
+  "psi_u_inner_output_gain": 20.0,
+  "std_ini_param": 0.005,
+  "use_sp": false,
+  "qpos_idx": null,
+  "qvel_idx": null,
+  "task": {
+    "controller_inputs": [
+      {
+        "type": "state_error",
+        "scale": 0.10,
+        "clip": null,
+        "params": {
+          "target": "xbar",
+          "sign": "current_minus_target"
+        }
+      },
+      {
+        "type": "imc_residual",
+        "scale": 1.0,
+        "clip": null,
+        "params": {}
+      }
+    ],
+    "cost_terms": [
+      {
+        "type": "state_l2",
+        "weight": 1.0,
+        "where": "running",
+        "params": {
+          "target": "xbar",
+          "use_Q": true
+        }
+      },
+      {
+        "type": "control_l2",
+        "weight": 0.00025,
+        "where": "running",
+        "params": {}
+      },
+      {
+        "type": "pairwise_distance_barrier",
+        "weight": 100.0,
+        "where": "running",
+        "params": {}
+      },
+      {
+        "type": "ellipsoid_obstacle",
+        "weight": 5000.0,
+        "where": "running",
+        "params": {}
+      },
+      {
+        "type": "box_bounds",
+        "weight": 500.0,
+        "where": "running",
+        "params": {}
+      }
+    ],
+    "metrics": [
+      {
+        "type": "collisions",
+        "name": "mean_collisions",
+        "params": {}
+      },
+      {
+        "type": "obstacle_violations",
+        "name": "mean_obstacle_violations",
+        "params": {}
+      },
+      {
+        "type": "min_obstacle_margin",
+        "name": "min_obstacle_margin",
+        "params": {}
+      },
+      {
+        "type": "final_goal_distance",
+        "name": "mean_final_goal_distance",
+        "params": {}
+      }
+    ]
+  }
+}
