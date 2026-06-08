@@ -18,10 +18,10 @@ The workflow follows four scripts:
 2. `src/evaluate.py`: run held-out rollouts and save trajectories.
 3. `src/visualize.py`: replay saved trajectories in MuJoCo GUI, optionally saving videos.
 4. `src/certify.py`: evaluate empirical certification thresholds.
-
+5. 
 <p align="center">
   <img src="https://github.com/cristianbrugnara/mjx-robust-control/releases/download/readme-media-v1/corridor_cvar.gif" alt="Corridor CVaR" width="45%">
-  <img src="https://github.com/cristianbrugnara/mjx-robust-control/releases/download/readme-media-v1/crazyflies_cvar.gif" alt="Crazyflies CVaR" width="45%">
+  <img src="https://github.com/cristianbrugnara/mjx-robust-control/releases/download/readme-media-v1/crazyflies_cvar.gif" alt="Crazyflies CVaR demo loading..." width="45%">
 </p>
 
 ## Robust Objectives
