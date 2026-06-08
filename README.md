@@ -20,7 +20,7 @@ The workflow follows four scripts:
 4. `src/certify.py`: evaluate empirical certification thresholds.
 
 <p align="center">
-  <sub><em>Crazyflies / CF GIF may take a few seconds to load.</em></sub>
+  <sub><em>Crazyflies GIF may take a few seconds to load.</em></sub>
 </p>
 
 <p align="center">
