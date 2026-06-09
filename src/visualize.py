@@ -1,7 +1,7 @@
 """
 Trajectory replay tool. Loads .npy trajectory files produced by evaluate.py and replays
 them in the MuJoCo GUI. Supports sequential or random rollout selection, side-by-side
-model comparison, trace overlays, top-down view, and optional video export.
+model comparison, trace overlays, top-down view, and video export.
 """
 
 from __future__ import annotations
