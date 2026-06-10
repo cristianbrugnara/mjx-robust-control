@@ -1,7 +1,6 @@
 """
 Evaluation workflow. Loads a trained checkpoint, runs held-out MJX rollouts, and writes
-trajectories, controls, costs, and a JSON summary to disk. Intended to be run after training
-and consumed by visualize.py and certify.py.
+trajectories, controls, costs, and a JSON summary to disk.
 """
 
 from __future__ import annotations
@@ -100,7 +99,6 @@ class EvalSpec:
 
 class _CollisionContext:
     def __init__(self, system: SystemSpec) -> None:
-        """Expose the layout fields needed by metric helpers."""
         self.n_agents = system.n_agents
         self.dof_per_entity = system.dof_per_entity
         self.entity_state_dim = system.entity_state_dim
@@ -108,18 +106,15 @@ class _CollisionContext:
 
 
 def zero_nominal_prediction(t: int | jax.Array, y: jax.Array, u: jax.Array) -> jax.Array:
-    """Use the current state as the nominal one-step prediction."""
     del t, u
     return y
 
 
 def _as_array(value: Any, *, dtype: Any = jnp.float32) -> jax.Array:
-    """Convert metadata values into JAX arrays with a stable dtype."""
     return jnp.asarray(value, dtype=dtype)
 
 
 def _rollout_meta(raw: dict[str, Any]) -> dict[str, Any]:
-    """Merge checkpoint rollout metadata sections."""
     merged: dict[str, Any] = {}
     for key in ("resolved", "rollout"):
         value = raw.get(key, {})
@@ -129,7 +124,6 @@ def _rollout_meta(raw: dict[str, Any]) -> dict[str, Any]:
 
 
 def _build_spec_from_metadata(raw: dict[str, Any], mj_model: mujoco.MjModel, sys_model: str | None) -> EvalSpec:
-    """Reconstruct evaluation settings from checkpoint metadata."""
     del sys_model
     if "system_config" not in raw:
         raise ValueError(
@@ -228,7 +222,6 @@ def _build_spec_from_metadata(raw: dict[str, Any], mj_model: mujoco.MjModel, sys
 
 
 def _build_spec_from_sys_model(sys_model: str, mj_model: mujoco.MjModel) -> EvalSpec:
-    """Build an evaluation spec directly from a named JSON system."""
     system = load_system_spec(sys_model)
     system.validate_against_mj_model(mj_model)
     task = require_explicit_task(system)
@@ -344,7 +337,6 @@ def load_eval_spec(
 
 
 def build_rollout_config(spec: EvalSpec) -> RolloutConfig:
-    """Build the rollout configuration used for evaluation scans."""
     return build_shared_rollout_config(
         system=spec.system,
         xbar=spec.xbar,
@@ -366,7 +358,6 @@ def build_rollout_config(spec: EvalSpec) -> RolloutConfig:
 
 
 def build_controller_skeleton(spec: EvalSpec, mj_model: mujoco.MjModel) -> Controller:
-    """Create a controller tree with the same dimensions as the checkpoint."""
     del mj_model
     return Controller(
         zero_nominal_prediction,
@@ -384,7 +375,6 @@ def build_controller_skeleton(spec: EvalSpec, mj_model: mujoco.MjModel) -> Contr
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse CLI options for checkpoint loading, rollout count, seed, and outputs."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--xml_path", type=str, required=True)
     parser.add_argument("--checkpoint_path", type=str, required=True)
@@ -410,12 +400,6 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
-    """Evaluate one checkpoint and write rollout arrays plus a JSON summary.
-
-    The main knobs are --checkpoint_path, --n_rollouts, --eval_batch_size,
-    --seed, and --output_dir. Saved arrays are meant to be consumed directly by
-    visualization and certification.
-    """
     args = parse_args()
     ckpt_stem = Path(args.checkpoint_path).stem
     output_dir = Path(args.output_dir) if args.output_dir is not None else Path("eval_results") / ckpt_stem

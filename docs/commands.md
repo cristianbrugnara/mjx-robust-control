@@ -5,8 +5,7 @@ Run commands from the repository root. With conda, activate the environment and 
 
 ## Generic System
 
-Use this template for a compatible MJCF file and JSON system configuration.
-Replace `<system_name>`, `<objective>`, and any dimensions or batch sizes that
+Template for a generic new system (defined by MJCF + JSON files). Replace `<system_name>`, `<objective>`, and any dimensions or batch sizes that
 are specific to the system.
 
 ```bash
@@ -32,11 +31,11 @@ python src/train.py \
   --control_squash \
   --grad_clip_norm 1.0
 
-# Optional controller-size overrides:
+# Optional controller-size:
 #   --n_xi_override 32 \
 #   --l_override 32
 
-# Optional initial-condition/output overrides:
+# Optional initial-condition/output:
 #   --std_ini_override 0.0 \
 #   --std_ini_param 0.0 \
 #   --output_amplification 0.0
@@ -100,16 +99,16 @@ python src/certify.py \
 
 Common parameters to adjust:
 
-| Parameter                                            | Description                                                                         |
-| ---------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `<system_name>`                                      | Checkpoint filename prefix used by certification.                                   |
-| `<objective>`                                        | One of `mean`, `cvar`, `pinball`, `softmax`, or `worst_case`.                       |
-| `--epochs`                                           | Increase for harder systems.                                                        |
-| `--batch_size`                                       | Use a value that fits memory.                                                       |
-| `--n_xi_override`, `--l_override`                    | Optional REN controller-size overrides.                                             |
-| `--n_rollouts`, `--eval_batch_size`                  | Evaluation sample count and evaluation memory tradeoff.                             |
-| `--qpos_dim_per_entity`, `--qvel_dim_per_entity`     | Required by visualization so it can split trajectories per entity.                  |
-| `--m_cert`, `--n_eval`                               | Certification calibration size and held-out evaluation size.                        |
+| Parameter                                            | Role                                                                    |
+| ---------------------------------------------------- | ----------------------------------------------------------------------- |
+| `<system_name>`                                    | Checkpoint filename prefix used by certification.                       |
+| `<objective>`                                      | One of `mean`, `cvar`, `pinball`, `softmax`, or `worst_case`. |
+| `--epochs`                                         | Increase for harder systems.                                            |
+| `--batch_size`                                     | Value that fits memory.                                                 |
+| `--n_xi_override`, `--l_override`                | Optional REN controller-size overrides.                                 |
+| `--n_rollouts`, `--eval_batch_size`              | Evaluation sample count and evaluation memory tradeoff.                 |
+| `--qpos_dim_per_entity`, `--qvel_dim_per_entity` | Required by visualization so it can split trajectories per entity.      |
+| `--m_cert`, `--n_eval`                           | Certification calibration size and held-out evaluation size.            |
 
 ## Corridor
 

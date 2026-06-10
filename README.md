@@ -16,7 +16,7 @@ The workflow follows four scripts:
 
 1. `src/train.py`: train a performance-boosting controller using a robust objective, e.g., CVaR.
 2. `src/evaluate.py`: run held-out rollouts and save trajectories.
-3. `src/visualize.py`: replay saved trajectories in MuJoCo GUI, optionally saving videos.
+3. `src/visualize.py`: replay saved trajectories in MuJoCo GUI.
 4. `src/certify.py`: evaluate empirical certification thresholds.
 
 <p align="center">
@@ -28,12 +28,11 @@ The workflow follows four scripts:
   <img src="https://github.com/cristianbrugnara/mjx-robust-control/releases/download/readme-media-v1/crazyflies_cvar.gif" alt="Crazyflies CVaR" width="45%">
 </p>
 
-
 ## Robust Objectives
 
-Training minimizes a scalar rollout performance metric over randomized MJX rollouts. We denote one rollout by $`D \sim p(D)`$, the controller parameters by $`K`$, and the scalar rollout cost by $`\Psi(D; K)`$. Training uses a design set of sampled rollouts $`\{D_{\mathrm{des}}^{(i)}\}_{i=1}^{m_{\mathrm{des}}}`$, while certification uses an additional independent set of rollouts $`\{D_{\mathrm{cert}}^{(j)}\}_{j=1}^{m_{\mathrm{cert}}}`$.
+Training minimizes a scalar rollout performance metric over randomized MJX rollouts. We denote one rollout by $D \sim p(D)$, the controller parameters by $K$, and the scalar rollout cost by $\Psi(D; K)$. Training uses a design set of sampled rollouts $\{D_{\mathrm{des}}^{(i)}\}_{i=1}^{m_{\mathrm{des}}}$, while certification uses an additional independent set of rollouts $\{D_{\mathrm{cert}}^{(j)}\}_{j=1}^{m_{\mathrm{cert}}}$.
 
-Users select a target violation probability $`\alpha \in (0,1)`$ and confidence level $`1-\delta`$, with $`\delta \in (0,1)`$. The robust objectives below are intended to improve not only average performance, but also high-tail behavior.
+Users select a target violation probability $\alpha \in (0,1)$ and confidence level $1-\delta$, with $\delta \in (0,1)$. The robust objectives below are intended to improve not only average performance, but also high-tail behavior.
 
 Supported objectives:
 
@@ -122,7 +121,11 @@ J_{\mathrm{worst}}(K)
 \Psi(D^{(i)};K).
 ```
 
-Certification is performed after training using held-out rollout costs, independent of the rollouts used for controller design. After evaluating the trained controller $K^\star$ on $m_{\mathrm{cert}}$ certification rollouts, the costs are sorted as
+
+
+
+
+Certification is performed after training using new held-out rollout costs, independent of the rollouts used for controller design. After evaluating the trained controller $K^\star$ on $m_{\mathrm{cert}}$ certification rollouts, the costs are sorted as
 
 ```math
 \Psi^{(1)}
@@ -134,7 +137,7 @@ Certification is performed after training using held-out rollout costs, independ
 \Psi^{(m_{\mathrm{cert}})}.
 ```
 
-Then compute
+Then 
 
 ```math
 \epsilon_{m_{\mathrm{cert}}}
@@ -170,7 +173,6 @@ If $k^\star \leq m_{\mathrm{cert}}$, the certified threshold is $\Psi^{(k^\star)
 1-\alpha.
 ```
 
-Thus, certification gives a distribution-free probabilistic upper bound on the rollout cost of the trained controller.
 
 ## Code Map
 
@@ -234,12 +236,6 @@ Clone with the MuJoCo Menagerie submodule, which provides the Crazyflie assets:
 git clone --recurse-submodules git@github.com:cristianbrugnara/mjx-robust-control.git
 ```
 
-If you cloned without submodules:
-
-```bash
-git submodule update --init --recursive
-```
-
 ### Conda
 
 CPU:
@@ -272,6 +268,7 @@ uv sync --extra gpu
 
 Use `uv run <command>`.
 
+
 ## Quick Start
 
 Check that a system XML and JSON agree:
@@ -282,7 +279,7 @@ python src/check_compatibility.py \
   --system_config_path assets/config/corridor.json
 ```
 
-Train a simple corridor controller using mean objective:
+Train a simple corridor controller using raw mean objective:
 
 ```bash
 python src/train.py \
@@ -350,13 +347,7 @@ Generated files are put in `artifacts/`:
 
 * `artifacts/trained_models/`: `.eqx` checkpoints and `.meta.json` information.
 * `artifacts/eval/`: rollout trajectories, controls, costs, and evaluation summaries.
-* `artifacts/certification/`: certification arrays, selected examples, plots,
-  and summaries.
-
-## More
-
-* `docs/commands.md`: longer train/evaluate/visualize/certify commands.
-* `docs/systems.md`: SOON.
+* `artifacts/certification/`: certification arrays, selected examples, plots, and summaries.
 
 ## References
 

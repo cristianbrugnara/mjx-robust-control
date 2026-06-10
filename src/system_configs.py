@@ -57,7 +57,6 @@ class ControlInterfaceSpec:
 
     @classmethod
     def from_dict(cls, raw: Any | None) -> "ControlInterfaceSpec":
-        """Parse an optional control-interface block."""
         if raw is None:
             return cls()
         if isinstance(raw, ControlInterfaceSpec):
@@ -117,7 +116,6 @@ class TaskSpec:
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any] | None) -> "TaskSpec":
-        """Parse a task block from JSON data."""
         if raw is None:
             return cls()
         raw = dict(raw)
@@ -316,29 +314,23 @@ class SystemSpec:
         return self.n_agents * self.controls_per_entity
 
     def x0_array(self, *, dtype=jnp.float32) -> Array:
-        """Return x0 as a JAX array."""
         return jnp.asarray(self.x0, dtype=dtype)
 
     def xbar_array(self, *, dtype=jnp.float32) -> Array:
-        """Return xbar as a JAX array."""
         return jnp.asarray(self.xbar, dtype=dtype)
 
     def init_noise_mask(self, *, dtype=jnp.float32) -> Array:
-        """Return the tiled initial-condition noise mask."""
         return jnp.tile(jnp.asarray(self.init_noise_mask_per_entity, dtype=dtype), self.n_agents)
 
     def Q(self, *, dtype=jnp.float32) -> Array:
-        """Return the block-diagonal state cost matrix."""
         per_entity = jnp.diag(jnp.asarray(self.q_diag_per_entity, dtype=dtype))
         return jnp.kron(jnp.eye(self.n_agents, dtype=dtype), per_entity)
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize the system spec as plain dataclass data."""
         return asdict(self)
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> "SystemSpec":
-        """Parse a system spec from JSON data."""
         raw = dict(raw)
         raw["position_indices"] = tuple(raw["position_indices"])
         raw["state_labels_per_entity"] = tuple(raw["state_labels_per_entity"])
@@ -580,7 +572,6 @@ def apply_mjx_model_options(spec: SystemSpec, mj_model: Any) -> None:
 
 
 def load_system_spec(name_or_path: str | None = None) -> SystemSpec:
-    """Load a system JSON by path or by name from assets/config."""
     if name_or_path is None:
         name_or_path = "corridor"
 
@@ -600,7 +591,6 @@ def load_system_spec(name_or_path: str | None = None) -> SystemSpec:
 
 
 def save_system_spec(spec: SystemSpec, path: str | Path) -> None:
-    """Write a system spec to JSON."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:

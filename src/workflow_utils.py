@@ -43,7 +43,6 @@ def positions_from_trajectory(x: jax.Array, sys: Any | None = None) -> jax.Array
 
 
 def calculate_collisions(x: jax.Array, sys: Any, min_dist: float) -> jax.Array:
-    """Count unordered close-contact pairs in a trajectory batch."""
     q = positions_from_trajectory(x, sys)
     delta = q[..., :, None, :] - q[..., None, :, :]
     distance_sq = jnp.sum(delta**2, axis=-1)
@@ -61,7 +60,6 @@ def calculate_collisions(x: jax.Array, sys: Any, min_dist: float) -> jax.Array:
 
 
 def _obstacle_ellipsoid_values(x: jax.Array, sys: Any) -> jax.Array:
-    """Ellipsoid values for configured obstacles along a trajectory."""
     obstacles = tuple(getattr(sys, "obstacles", ()))
     q = positions_from_trajectory(x, sys)
     if len(obstacles) == 0:
@@ -74,7 +72,6 @@ def _obstacle_ellipsoid_values(x: jax.Array, sys: Any) -> jax.Array:
 
 
 def calculate_obstacle_violations(x: jax.Array, sys: Any) -> jax.Array:
-    """Count time/agent/obstacle samples inside configured obstacle ellipses."""
     ellipsoid = _obstacle_ellipsoid_values(x, sys)
     return jnp.sum((ellipsoid < 1.0).astype(jnp.float32))
 
@@ -88,7 +85,6 @@ def min_obstacle_margin(x: jax.Array, sys: Any) -> jax.Array:
 
 
 def final_goal_distances(x: jax.Array, sys: Any, xbar: jax.Array) -> jax.Array:
-    """Per-agent Euclidean distance to each goal at the final trajectory sample."""
     x = jnp.asarray(x)
     final_x = x[..., -1, :]
     q_final = positions_from_trajectory(final_x, sys)
@@ -110,7 +106,6 @@ def controller_input_dim_from_blocks(
     state_dim: int,
     controller_inputs: tuple[ControllerInputSpec, ...],
 ) -> int:
-    """Compute the REN input dimension from JSON controller-input blocks."""
     total = 0
     for block in controller_inputs:
         if block.type in ("state", "state_error", "imc_residual"):
@@ -166,7 +161,6 @@ def resolve_task_references(
 
 
 def build_loss_context(*, system: SystemSpec, xbar: Array) -> LossContext:
-    """Build the static loss context from a system spec."""
     return LossContext(
         n=int(xbar.shape[0]),
         n_agents=system.n_agents,
@@ -207,7 +201,6 @@ def build_rollout_config(
     task: TaskSpec,
     task_references: tuple[tuple[str, Array], ...],
 ) -> RolloutConfig:
-    """Build the rollout configuration passed to JAX/MJX scans."""
     return RolloutConfig(
         loss_context=build_loss_context(system=system, xbar=xbar),
         qpos_idx=qpos_idx,

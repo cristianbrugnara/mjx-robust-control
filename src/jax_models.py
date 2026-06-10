@@ -46,7 +46,6 @@ class PsiU(eqx.Module):
         epsilon: float = 1e-3,
         inner_output_gain: float = 20.0,
     ) -> None:
-        """Initialize REN parameters from one PRNG key."""
         self.n = n
         self.m = m
         self.n_xi = n_xi
@@ -89,7 +88,6 @@ class PsiU(eqx.Module):
         return F, B1, E, Lambda, C1, D11
 
     def __call__(self, t: int | jax.Array, w: jax.Array, xi: jax.Array) -> tuple[jax.Array, jax.Array]:
-        """Evaluate one REN feedback step."""
         del t
         F, B1, E, Lambda, C1, D11 = self._derived_matrices()
 
@@ -113,15 +111,12 @@ class PsiU(eqx.Module):
 
 class PsiX(eqx.Module):
     """Wrapper around a nominal one-step predictor f(t, y, u)."""
-
     f: Callable[[int | jax.Array, jax.Array, jax.Array], jax.Array] = eqx.field(static=True)
 
     def __init__(self, f: Callable[[int | jax.Array, jax.Array, jax.Array], jax.Array]) -> None:
-        """Store the nominal predictor."""
         self.f = f
 
     def __call__(self, t: int | jax.Array, omega: Omega) -> tuple[jax.Array, None]:
-        """Predict the next state from the current omega pair."""
         y, u = omega
         psi_x = self.f(t, y, u)
         return psi_x, None
@@ -143,7 +138,6 @@ class InputSchedule(eqx.Module):
         key: Optional[jax.Array] = None,
         std: float = 0.0,
     ) -> None:
-        """Create a finite input schedule or a zero schedule."""
         self.m = m
         self.t_end = t_end
         if active:
@@ -154,7 +148,6 @@ class InputSchedule(eqx.Module):
             self.u = jnp.zeros((t_end, m))
 
     def __call__(self, t: int | jax.Array) -> jax.Array:
-        """Return the scheduled input at time t."""
         t_int = jnp.asarray(t, dtype=jnp.int32)
         idx = jnp.clip(t_int, 0, max(self.t_end - 1, 0))
         value = self.u[idx]
@@ -193,7 +186,6 @@ class Controller(eqx.Module):
         output_amplification: float = 20.0,
         psi_u_inner_output_gain: float = 20.0,
     ) -> None:
-        """Initialize the predictor, REN, and optional input schedule."""
         key_psi_u, key_sp = jr.split(key, 2)
         self.n = n
         self.m = m
@@ -259,5 +251,4 @@ class Controller(eqx.Module):
         xi: jax.Array,
         omega: Omega,
     ) -> tuple[jax.Array, jax.Array, Omega]:
-        """Call the omega-based controller step."""
         return self.step_from_omega(t, y, xi, omega)

@@ -94,25 +94,15 @@ class TrainConfig:
 
 
 def zero_nominal_prediction(t: int | Array, y: Array, u: Array) -> Array:
-    """Use the current state as the nominal one-step prediction."""
     del t, u
     return y
 
 
 def load_training_system(config: TrainConfig) -> SystemSpec:
-    """Load the JSON system selected by --system_config_path or --sys_model."""
     return load_system_spec(config.system_config_path or config.sys_model)
 
 
-def position_noise_mask(spec: SystemSpec, dtype: Any = jnp.float32) -> Array:
-    """Return the initial-state noise mask for a system."""
-    return spec.init_noise_mask(dtype=dtype)
-
-
-
-
 def build_objective_fn(config: TrainConfig) -> Callable[[Array, Array], Array]:
-    """Select the scalar robust objective used to reduce rollout costs."""
     if config.objective == "mean":
         return lambda costs, tau: mean_loss(costs)
     if config.objective == "cvar":
@@ -137,7 +127,6 @@ def build_loss_fn(
     x_prediction0: Array,
     objective_fn: Callable[[Array, Array], Array],
 ) -> Callable[[dict[str, Array], tuple[Array, Array] | Array], Array]:
-    """Create the differentiable training loss around batched MJX rollouts."""
     xi_dim = static_controller.psi_u.n_xi
 
     def single_rollout_loss(
@@ -225,7 +214,6 @@ def make_train_step(
 
 
 def make_eval_step(loss_fn: Callable[[Any, Any], Array]) -> Callable[[Any, Any], Array]:
-    """JIT the validation loss."""
     @jax.jit
     def eval_step(trainable, batch):
         return loss_fn(trainable, batch)
@@ -234,7 +222,6 @@ def make_eval_step(loss_fn: Callable[[Any, Any], Array]) -> Callable[[Any, Any],
 
 
 def build_default_save_path(config: TrainConfig, spec: SystemSpec | None = None) -> Path:
-    """Choose the default checkpoint path for a training run."""
     system_name = spec.name if spec is not None else config.sys_model
     return Path("trained_models") / f"{system_name}_{config.objective}_seed{config.seed}.eqx"
 
@@ -259,7 +246,6 @@ def _jsonify(value: Any) -> Any:
 
 
 def save_metadata(save_path: Path, metadata: dict[str, Any]) -> None:
-    """Write the sidecar metadata next to a checkpoint."""
     meta_path = Path(str(save_path) + ".meta.json")
     with open(meta_path, "w", encoding="utf-8") as f:
         json.dump(_jsonify(metadata), f, indent=2)
@@ -293,19 +279,13 @@ def resolve_training_values(config: TrainConfig, spec: SystemSpec) -> dict[str, 
 
 
 def make_optimizer(learning_rate: float, grad_clip_norm: float | None) -> optax.GradientTransformation:
-    """Build Adam, optionally clipping gradients by global norm."""
     if grad_clip_norm is None or grad_clip_norm <= 0.0:
         return optax.adam(learning_rate)
     return optax.chain(optax.clip_by_global_norm(float(grad_clip_norm)), optax.adam(learning_rate))
 
 
 def train(config: TrainConfig) -> tuple[Controller, float, float]:
-    """Train one controller and save the best validation checkpoint.
-
-    The knobs users usually change are the system paths, objective, sample
-    counts, batch size, validation period, control squashing, gradient clipping,
-    and save path. Returns the best controller, validation loss, and tau value.
-    """
+    """Train one controller and save the best validation checkpoint."""
     spec = load_training_system(config)
     if config.dof_per_entity is not None and config.dof_per_entity != spec.dof_per_entity:
         raise ValueError(
@@ -610,7 +590,6 @@ def train(config: TrainConfig) -> tuple[Controller, float, float]:
 
 
 def parse_args() -> TrainConfig:
-    """Parse CLI options for system selection, objective choice, data size, and saving."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--xml_path", type=str, default="corridor.xml")
     parser.add_argument("--sys_model", type=str, default="corridor")
@@ -665,7 +644,6 @@ def parse_args() -> TrainConfig:
 
 
 def main() -> None:
-    """Run training from the command line and print the saved checkpoint path."""
     config = parse_args()
     spec = load_training_system(config)
     _, best_val, best_tau = train(config)

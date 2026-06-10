@@ -24,7 +24,6 @@ def _position_indices(sys: Any | None) -> tuple[int, ...]:
 
 
 def positions_from_state(x: jax.Array, sys: Any | None = None) -> jax.Array:
-    """Extract per-agent position coordinates from a flat state."""
     x = jnp.asarray(x)
     entity_dim = _entity_state_dim(sys)
     pos_idx = jnp.asarray(_position_indices(sys), dtype=jnp.int32)
@@ -33,7 +32,6 @@ def positions_from_state(x: jax.Array, sys: Any | None = None) -> jax.Array:
 
 
 def pairwise_distance_sq(q: jax.Array) -> jax.Array:
-    """Return pairwise squared distances between rows of q."""
     delta = q[:, None, :] - q[None, :, :]
     return jnp.sum(delta**2, axis=-1)
 

@@ -2,20 +2,20 @@
 
 A supported system is a MJCF model plus one JSON config:
 
-- `assets/mjcf/<system>.xml`: MuJoCo bodies, joints, actuators, geoms, cameras, and simulation options.
+- `assets/mjcf/<system>.xml`: MuJoCo bodies, joints, actuators, geoms, cameras, simulation options, and any visual element.
 - `assets/config/<system>.json`: state layout, controller inputs, cost terms, disturbances, metrics, and training default parameters.
 
 ## Compatibility
 
 - The XML should load with `mujoco.MjModel.from_xml_path` and `mjx.put_model`.
-- `n_agents * qpos_dim_per_entity` must match the selected `qpos_idx` length.
-- `n_agents * qvel_dim_per_entity` must match the selected `qvel_idx` length.
-- If `qpos_idx` or `qvel_idx` is omitted, the full MuJoCo `qpos` or `qvel` vector is used.
-- The flat state order is `[agent_0 qpos, agent_0 qvels, agent_1 qpos, agent_1 qvel, ..., agent_n qpos, agent_n qvel]`.
+- `n_agents * qpos_dim_per_entity` must match the `qpos_idx` length.
+- `n_agents * qvel_dim_per_entity` must match the `qvel_idx` length.
+- If `qpos_idx` or `qvel_idx` is not provided, the full MuJoCo `qpos` or `qvel` vector is used.
+- The flat state is `[agent_0 qpos, agent_0 qvels, agent_1 qpos, agent_1 qvel, ..., agent_n qpos, agent_n qvel]`.
 - Control dimensions, policy bounds, labels, `x0`, `xbar`, `q_diag_per_entity`, and noise masks must have the configured lengths.
 - Cost terms, metrics, obstacles, bounds, references, and disturbances must match the configured state layout.
 
-To cehck:
+To check:
 
 ```bash
 python src/check_compatibility.py \
@@ -25,17 +25,15 @@ python src/check_compatibility.py \
 
 ## Controller Inputs
 
-`task.controller_inputs` is concatenated in JSON order. Supported input block types:
+`task.controller_inputs` is concatenated in JSON order. Block types:
 
 - `state`
 - `state_error`
 - `imc_residual`
 
-Every block accepts `scale`, optional `clip`, and optional `params`. `state_error` supports named references, sign changes, angular wrapping, zeroed indices, and quaternion-aware errors.
+## Cost Terms
 
-### Cost Terms
-
-`task.cost_terms` defines scalar rollout costs. Each term has `type`, `weight`, `where`, and `params`. Supported cost types:
+`task.cost_terms` defines scalar rollout costs. Each term has `type`, `weight`, `where`, and `params`.
 
 - `state_l2`
 - `state_bounds`

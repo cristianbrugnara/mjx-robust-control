@@ -15,6 +15,31 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
+
+import equinox as eqx
+import jax
+import mujoco
+import numpy as np
+from mujoco import mjx
+
+from evaluate import (
+        build_controller_skeleton,
+        build_rollout_config,
+        load_eval_spec,
+    )
+from workflow_utils import (
+        build_data_init,
+        sample_initial_conditions,
+        sample_qvel_impulses,
+    )
+from jax_rollout import rollout_with_trajectory
+from system_configs import apply_mjx_model_options
+
 
 DEFAULT_OBJECTIVES = ("mean", "cvar", "pinball", "softmax", "worst_case")
 
@@ -30,7 +55,7 @@ class CertificationResult:
 
 
 def epsilon_m(m: int, delta: float) -> float:
-    """Compute the DKW confidence radius for m samples."""
+    """DKW confidence radius for m samples."""
     if m <= 0:
         raise ValueError("m must be positive.")
     if not (0.0 < delta < 1.0):
@@ -39,7 +64,7 @@ def epsilon_m(m: int, delta: float) -> float:
 
 
 def k_star(m: int, alpha: float, eps: float) -> int:
-    """Return the order statistic index used by the certificate."""
+    """Order statistic index used by the certificate."""
     if m <= 0:
         raise ValueError("m must be positive.")
     if not (0.0 < alpha < 1.0):
@@ -55,9 +80,8 @@ def theorem1_threshold(values: Iterable[float], *, alpha: float, delta: float) -
     ks = k_star(m, alpha, eps)
     if ks > m or alpha < eps:
         raise ValueError(
-            "Theorem 1 sample-size condition failed: "
+            "sample-size condition failed: "
             f"m={m}, k_star={ks}, alpha={alpha:.6g}, epsilon_m={eps:.6g}. "
-            "Increase m_cert or alpha."
         )
     return CertificationResult(
         threshold=float(vals[ks - 1]),
@@ -70,7 +94,6 @@ def theorem1_threshold(values: Iterable[float], *, alpha: float, delta: float) -
 
 
 def split_pass_fail(costs: Iterable[float], threshold: float) -> tuple[list[int], list[int]]:
-    """Split rollout indices by whether their cost respects the threshold."""
     respect: list[int] = []
     violate: list[int] = []
     for idx, cost in enumerate(costs):
@@ -89,7 +112,6 @@ def select_examples(
     n_examples: int,
     prefer: str,
 ) -> list[int]:
-    """Pick representative rollout indices near or above the threshold."""
     idx = [int(i) for i in indices]
     if n_examples <= 0 or not idx:
         return []
@@ -104,14 +126,12 @@ def select_examples(
 
 
 def json_dump(path: Path, value: dict[str, Any]) -> None:
-    """Write a JSON file, creating parent directories first."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(value, f, indent=2)
 
 
 def np_save(path: Path, value: Any) -> None:
-    """Save a NumPy array, creating parent directories first."""
     import numpy as np
 
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -119,7 +139,6 @@ def np_save(path: Path, value: Any) -> None:
 
 
 def load_numpy(path: Path) -> Any:
-    """Load an array from disk."""
     import numpy as np
 
     return np.load(path)
@@ -134,25 +153,6 @@ def evaluate_checkpoint(
     seed: int,
     n_rollouts: int,
 ) -> dict[str, Any]:
-    """Evaluate one checkpoint and return the arrays used by certification."""
-    import equinox as eqx
-    import jax
-    import mujoco
-    import numpy as np
-    from mujoco import mjx
-
-    from evaluate import (
-        build_controller_skeleton,
-        build_rollout_config,
-        load_eval_spec,
-    )
-    from workflow_utils import (
-        build_data_init,
-        sample_initial_conditions,
-        sample_qvel_impulses,
-    )
-    from jax_rollout import rollout_with_trajectory
-    from system_configs import apply_mjx_model_options
 
     mj_model = mujoco.MjModel.from_xml_path(str(xml_path))
     spec = load_eval_spec(
@@ -192,7 +192,6 @@ def evaluate_checkpoint(
     ctrl_dim = int(mj_model.nu)
 
     def single_eval(x_real0: Any, qvel_impulse: Any) -> tuple[Any, Any, Any]:
-        """Run one rollout for the certification batch."""
         data_init = build_data_init(
             data_template,
             x_real0,
@@ -283,7 +282,6 @@ def save_rollout_bundle(
     prefix: str,
     result: dict[str, Any],
 ) -> None:
-    """Save the rollout arrays produced by evaluation."""
     np_save(out_dir / f"{prefix}_costs.npy", result["costs"])
     np_save(out_dir / f"{prefix}_trajectories.npy", result["trajectories"])
     np_save(out_dir / f"{prefix}_controls.npy", result["controls"])
@@ -298,8 +296,6 @@ def save_selected_trajectory_file(
     eval_result: dict[str, Any],
     indices: list[int],
 ) -> None:
-    """Save selected rollout arrays for replay."""
-    import numpy as np
 
     trajectories = np.asarray(eval_result["trajectories"])
     controls = np.asarray(eval_result["controls"])
@@ -315,12 +311,6 @@ def save_selected_trajectory_file(
 
 
 def plot_thresholds(run_dir: Path, summaries: list[dict[str, Any]]) -> None:
-    """Plot one certified threshold per objective."""
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-
     names = [item["objective"] for item in summaries]
     thresholds = [float(item["threshold"]) for item in summaries]
     fig, ax = plt.subplots(figsize=(max(6.0, 1.1 * len(names)), 4.0))
@@ -335,22 +325,12 @@ def plot_thresholds(run_dir: Path, summaries: list[dict[str, Any]]) -> None:
 
 
 def empirical_cdf(values: Any, grid: Any) -> Any:
-    """Evaluate the empirical CDF on a grid."""
-    import numpy as np
-
     vals = np.asarray(values).reshape(1, -1)
     t_grid = np.asarray(grid).reshape(-1, 1)
     return (vals <= t_grid).mean(axis=1)
 
 
 def plot_cdfs(run_dir: Path, summaries: list[dict[str, Any]]) -> None:
-    """Plot calibration CDFs and DKW bands."""
-    import matplotlib
-    import numpy as np
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-
     all_costs = []
     for item in summaries:
         all_costs.append(load_numpy(Path(item["cert_costs_path"])))
@@ -400,7 +380,6 @@ def plot_cdfs(run_dir: Path, summaries: list[dict[str, Any]]) -> None:
 
 
 def copy_checkpoint_metadata(checkpoint_path: Path, out_dir: Path) -> None:
-    """Copy a checkpoint and sidecar metadata into a certification run."""
     meta_path = Path(str(checkpoint_path) + ".meta.json")
     if checkpoint_path.exists():
         shutil.copy2(checkpoint_path, out_dir / checkpoint_path.name)
@@ -465,8 +444,6 @@ def run_objective(objective: str, *, run_dir: Path, args: argparse.Namespace) ->
     save_selected_trajectory_file(out_dir=out_dir, name="selected_respect", eval_result=eval_result, indices=selected_respect)
     save_selected_trajectory_file(out_dir=out_dir, name="selected_violate", eval_result=eval_result, indices=selected_violate)
 
-    import numpy as np
-
     eval_costs = np.asarray(eval_result["costs"])
     viz_layout_args = (
         f"--qpos_dim_per_entity {cert_result['spec'].system.qpos_dim_per_entity_resolved} "
@@ -519,7 +496,6 @@ def run_objective(objective: str, *, run_dir: Path, args: argparse.Namespace) ->
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse CLI options for objectives, checkpoints, sample counts, and outputs."""
     parser = argparse.ArgumentParser(description="Train, evaluate, and certify JAX/MJX REN controllers.")
     parser.add_argument("--xml_path", type=Path, default=Path("assets/mjcf/corridor.xml"))
     parser.add_argument("--sys_model", type=str, default="corridor")

@@ -411,7 +411,6 @@ def _generic_loss(
     *,
     data: Any | None = None,
 ) -> jax.Array:
-    """Sum all cost terms that apply to one rollout phase."""
     total = jnp.zeros((), dtype=x.dtype)
     for term in config.cost_terms:
         if _applies(term, phase):
@@ -435,7 +434,6 @@ def step_loss(
     config: RolloutConfig,
     data: Any | None = None,
 ) -> jax.Array:
-    """Running loss at one rollout step."""
     return _generic_loss(
         "running",
         t,
@@ -453,7 +451,6 @@ def terminal_loss(
     config: RolloutConfig,
     data_final: Any | None = None,
 ) -> jax.Array:
-    """Extra terminal loss applied at the end of a rollout."""
     sys = config.loss_context
     total = jnp.zeros((), dtype=x_final.dtype)
     u_dummy = jnp.zeros_like(config.ctrl_low, dtype=x_final.dtype)
@@ -477,8 +474,10 @@ def pre_stabilizing_control(x: jax.Array, config: RolloutConfig) -> jax.Array:
 
     Modes:
       - none: no pre-stabilization
+
       - direct_position: point-mass baseline; writes position error directly
         into force-like control channels.
+        
       - quadrotor_position: simple quadrotor outer-loop baseline; writes small
         thrust/roll/pitch/yaw-rate commands in the policy space:
         [collective_thrust, roll_cmd, pitch_cmd, yaw_rate_cmd].
@@ -609,7 +608,6 @@ def _control_interface_params(config: RolloutConfig) -> dict[str, Any]:
 
 
 def _quat_to_roll_pitch(q: jax.Array) -> tuple[jax.Array, jax.Array]:
-    """Convert a unit quaternion to roll and pitch angles."""
     q = q / jnp.maximum(jnp.linalg.norm(q), jnp.asarray(1.0e-8, dtype=q.dtype))
     qw, qx, qy, qz = q
     roll = jnp.arctan2(
@@ -766,7 +764,6 @@ def policy_to_actuator_control(x: jax.Array, u_policy: jax.Array, config: Rollou
 
 
 def _extract_final_state(carry: RolloutCarry, config: RolloutConfig) -> jax.Array:
-    """Extract the real final flat state from a scan carry."""
     data_real, _, _, _ = carry
     return extract_flat_state(
         data_real,
@@ -779,7 +776,6 @@ def _extract_final_state(carry: RolloutCarry, config: RolloutConfig) -> jax.Arra
 
 
 def _controller_step(controller_params: Any, t: jax.Array, w_hat: jax.Array, xi: jax.Array) -> tuple[jax.Array, jax.Array]:
-    """Run one controller step."""
     return controller_params.step_from_signal(t, w_hat, xi)
 
 
@@ -886,7 +882,6 @@ def rollout(
     loss_weights: RolloutConfig,
     qvel_impulse: jax.Array | None = None,
 ) -> jax.Array:
-    """Return the scalar rollout loss for one initial condition."""
     def scan_body(carry: RolloutCarry, t: jax.Array):
         return _scan_step(
             controller_params,
@@ -916,7 +911,6 @@ def rollout_with_trajectory(
     loss_weights: RolloutConfig,
     qvel_impulse: jax.Array | None = None,
 ) -> tuple[jax.Array, jax.Array, jax.Array]:
-    """Return rollout loss, state trajectory, and policy controls."""
     def scan_body(carry: RolloutCarry, t: jax.Array):
         return _scan_step(
             controller_params,

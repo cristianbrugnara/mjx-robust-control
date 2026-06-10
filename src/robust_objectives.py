@@ -14,7 +14,7 @@ Array = jax.Array
 
 
 def mean_loss(costs: Array) -> Array:
-    """Average rollout cost."""
+    """Empirical average rollout cost."""
     costs = jnp.asarray(costs)
     return jnp.mean(costs)
 
@@ -56,8 +56,7 @@ def pinball_loss(costs: Array, quantile: float, tau: Array) -> Array:
 
 
 def softmax_loss(costs: Array, beta: float) -> Array:
-    """Smooth worst-case objective.
-    """
+    """Smooth worst-case objective."""
     costs = jnp.asarray(costs)
     beta = jnp.asarray(beta, dtype=costs.dtype)
 
@@ -70,13 +69,12 @@ def softmax_loss(costs: Array, beta: float) -> Array:
 
 
 def worst_case_loss(costs: Array) -> Array:
-    """Maximum rollout cost."""
+    """Empirical maximum rollout cost."""
     costs = jnp.asarray(costs)
     return jnp.max(costs)
 
 
 def objective_requires_tau(name: str) -> bool:
-    """Return whether an objective has a trainable threshold parameter."""
     return name in ("cvar", "pinball")
 
 

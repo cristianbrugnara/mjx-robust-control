@@ -20,6 +20,15 @@ from typing import Any, Iterator, Sequence
 import mujoco
 import mujoco.viewer
 import numpy as np
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except ImportError:
+    Image = ImageDraw = ImageFont = None
+
+try:
+    import imageio.v2 as imageio
+except ImportError:
+    imageio = None
 
 from jax_rollout import state_to_qpos_qvel
 
@@ -45,7 +54,6 @@ class TrajectorySet:
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse command-line options for trajectory replay."""
     parser = argparse.ArgumentParser(
         description="Replay saved evaluate.py trajectories in MuJoCo.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -298,7 +306,6 @@ def parse_args() -> argparse.Namespace:
 
 
 def default_label(path: Path) -> str:
-    """Choose a readable label from a trajectory path."""
     if path.name == "trajectories.npy" and path.parent.name:
         return path.parent.name
     return path.stem
@@ -333,7 +340,6 @@ def load_trajectory_set(path_like: str, label: str | None = None) -> TrajectoryS
 
 
 def validate_compatible_sets(primary: TrajectorySet, compare: TrajectorySet | None) -> int:
-    """Validate two trajectory sets can be replayed together."""
     if compare is None:
         return primary.n_rollouts
     if primary.state_dim != compare.state_dim:
@@ -423,7 +429,6 @@ def prefix_local_names(elem: ET.Element, prefix: str) -> None:
 
 
 def remove_if_present(root: ET.Element, tag: str) -> None:
-    """Remove a top-level XML element if present."""
     node = root.find(tag)
     if node is not None:
         root.remove(node)
@@ -440,7 +445,6 @@ def xml_subtree_has_freejoint(elem: ET.Element) -> bool:
 
 
 def xml_has_freejoint(root: ET.Element) -> bool:
-    """Return whether an MJCF root contains any free joint."""
     return xml_subtree_has_freejoint(root)
 
 
@@ -704,7 +708,6 @@ def set_frame_state(
 
 
 def format_cost(dataset: TrajectorySet, rollout_idx: int) -> str:
-    """Format a rollout cost for console output."""
     if dataset.costs is None:
         return "cost=n/a"
     return f"cost={float(dataset.costs[rollout_idx]):.6g}"
@@ -717,7 +720,6 @@ def print_clip_info(
     compare: TrajectorySet | None,
     t_frames: int,
 ) -> None:
-    """Print the current clip label and cost information."""
     if compare is None:
         print(
             f"Playing rollout {rollout_idx:04d} | {primary.label}: "
@@ -732,7 +734,6 @@ def print_clip_info(
 
 
 def configure_camera(viewer: Any, *, compare: bool, spacing: float, top_down: bool) -> None:
-    """Set a top-down viewer camera when requested."""
     if not top_down:
         return
 
@@ -743,7 +744,6 @@ def configure_camera(viewer: Any, *, compare: bool, spacing: float, top_down: bo
 
 
 def mj_name(model: mujoco.MjModel, obj_type: mujoco.mjtObj, obj_id: int) -> str:
-    """Return a MuJoCo object name, or an empty string."""
     name = mujoco.mj_id2name(model, obj_type, int(obj_id))
     return name or ""
 
@@ -767,7 +767,6 @@ def material_or_object_rgba(
 
 
 def geom_effective_rgba(model: mujoco.MjModel, geom_id: int) -> np.ndarray:
-    """Return the visible RGBA color for a geom."""
     return material_or_object_rgba(
         model,
         mat_id=int(model.geom_matid[int(geom_id)]),
@@ -776,7 +775,6 @@ def geom_effective_rgba(model: mujoco.MjModel, geom_id: int) -> np.ndarray:
 
 
 def site_effective_rgba(model: mujoco.MjModel, site_id: int) -> np.ndarray:
-    """Return the visible RGBA color for a site."""
     return material_or_object_rgba(
         model,
         mat_id=int(model.site_matid[int(site_id)]),
@@ -785,13 +783,11 @@ def site_effective_rgba(model: mujoco.MjModel, site_id: int) -> np.ndarray:
 
 
 def rgba_saturation(rgb: np.ndarray) -> float:
-    """Return max-minus-min channel saturation."""
     rgb = np.asarray(rgb, dtype=np.float32)
     return float(np.max(rgb) - np.min(rgb))
 
 
 def rgba_brightness(rgb: np.ndarray) -> float:
-    """Return mean RGB brightness."""
     rgb = np.asarray(rgb, dtype=np.float32)
     return float(np.mean(rgb))
 
@@ -870,13 +866,11 @@ def body_descendants(model: mujoco.MjModel, root_body_id: int) -> list[int]:
 
 
 def geom_size_score(model: mujoco.MjModel, geom_id: int) -> float:
-    """Return a simple visual-size score for a geom."""
     size = np.asarray(model.geom_size[int(geom_id)], dtype=np.float32)
     return float(np.linalg.norm(size))
 
 
 def site_size_score(model: mujoco.MjModel, site_id: int) -> float:
-    """Return a simple visual-size score for a site."""
     size = np.asarray(model.site_size[int(site_id)], dtype=np.float32)
     return float(np.linalg.norm(size))
 
@@ -1158,7 +1152,6 @@ def infer_agent_colors_from_model(
 
 
 def layout_dims(args: argparse.Namespace) -> tuple[int, int, int]:
-    """Resolve qpos and qvel dimensions from CLI arguments."""
     dof = int(args.dof_per_entity)
     qpos_dim = dof if args.qpos_dim_per_entity is None else int(args.qpos_dim_per_entity)
     qvel_dim = dof if args.qvel_dim_per_entity is None else int(args.qvel_dim_per_entity)
@@ -1323,7 +1316,6 @@ def draw_traces(
     z: float,
     agent_colors: Sequence[np.ndarray],
 ) -> None:
-    """Draw rollout traces in the viewer user scene."""
     draw_trace_geoms(
         viewer.user_scn,
         traces,
@@ -1338,12 +1330,10 @@ def draw_traces(
 
 
 def recording_requested(args: argparse.Namespace) -> bool:
-    """Return whether this invocation should render MP4s instead of opening the GUI."""
     return args.record_dir is not None or args.record_path is not None
 
 
 def safe_filename(value: str) -> str:
-    """Create a readable, portable filename stem from a label."""
     stem = re.sub(r"[^A-Za-z0-9._-]+", "_", value.strip()).strip("._-")
     return stem or "trajectory"
 
@@ -1404,7 +1394,6 @@ def make_renderer(model: mujoco.MjModel, args: argparse.Namespace) -> mujoco.Ren
 
 
 def smoothstep(s: float) -> float:
-    """Cubic smoothstep for camera interpolation."""
     s = min(1.0, max(0.0, float(s)))
     return s * s * (3.0 - 2.0 * s)
 
@@ -1450,7 +1439,6 @@ def record_camera_for_frame(
     n_frames: int,
     args: argparse.Namespace,
 ) -> Any:
-    """Return either a fixed-camera name or a scripted free camera."""
     if str(args.record_camera) == "fixed":
         return str(args.record_camera_name)
     return free_camera_for_record_frame(model, frame_idx=frame_idx, n_frames=n_frames, args=args)
@@ -1463,7 +1451,6 @@ def overlay_video_title(
     rollout_idx: int,
     args: argparse.Namespace,
 ) -> np.ndarray:
-    """Draw a simple title band into an RGB frame."""
     if args.record_no_titles:
         return frame
 
@@ -1471,9 +1458,7 @@ def overlay_video_title(
     if title_height <= 0:
         return frame
 
-    try:
-        from PIL import Image, ImageDraw, ImageFont
-    except ImportError:
+    if Image is None or ImageDraw is None or ImageFont is None:
         return frame
 
     img = Image.fromarray(np.asarray(frame, dtype=np.uint8))
@@ -1500,14 +1485,11 @@ def overlay_video_title(
 
 
 def open_video_writer(path: Path, *, fps: float):
-    """Open an imageio MP4 writer with a clear error if ffmpeg support is missing."""
-    try:
-        import imageio.v2 as imageio
-    except ImportError as exc:
+    if imageio is None:
         raise RuntimeError(
             "Video export requires imageio with ffmpeg support. Install it with, for example, "
             "`uv add imageio imageio-ffmpeg` or `pip install imageio imageio-ffmpeg`."
-        ) from exc
+        )
 
     path.parent.mkdir(parents=True, exist_ok=True)
     return imageio.get_writer(
@@ -1937,7 +1919,6 @@ def replay(
 
 
 def print_dataset_summary(primary: TrajectorySet, compare: TrajectorySet | None, n_available: int) -> None:
-    """Print loaded dataset shapes before opening the viewer."""
     print(
         f"Loaded {primary.label}: {primary.n_rollouts} rollouts, "
         f"T={primary.t_end}, state_dim={primary.state_dim}."
@@ -2018,7 +1999,6 @@ def dry_run(
 
 
 def main() -> None:
-    """Load trajectory files and start replay."""
     args = parse_args()
     xml_path = Path(args.xml_path)
 

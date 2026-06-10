@@ -1,5 +1,5 @@
 """
-validation utility. Checks that an XML/JSON pair can be loaded by MJX, and prints resolved
+Validation utility. Checks that an XML/JSON pair can be loaded by MJX, then prints resolved
 state/control dimensions.
 """
 
