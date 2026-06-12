@@ -8,7 +8,7 @@ import numpy as np
 
 try:
     import mujoco
-except ModuleNotFoundError:  # pragma: no cover - depends on the local env.
+except ModuleNotFoundError: 
     mujoco = None
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -38,7 +38,7 @@ class TraceColorInferenceTests(unittest.TestCase):
         np.testing.assert_allclose(colors[2][:3], [0.22, 0.62, 0.40], atol=1e-6)
 
     def test_actual_car_trace_colors_ignore_taillights(self) -> None:
-        model = mujoco.MjModel.from_xml_path(str(ROOT / "assets/mjcf/intersection3_actual_cars.xml"))
+        model = mujoco.MjModel.from_xml_path(str(ROOT / "assets/mjcf/intersection3.xml"))
 
         colors = infer_agent_colors_from_model(
             model,

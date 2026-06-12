@@ -196,13 +196,13 @@ python src/certify.py \
 ```bash
 # Check compatibility.
 python src/check_compatibility.py \
-  --xml_path assets/mjcf/intersection3_actual_cars.xml \
+  --xml_path assets/mjcf/intersection3.xml \
   --system_config_path assets/config/intersection3.json
 
 # Train controller.
 env XLA_PYTHON_CLIENT_PREALLOCATE=false XLA_PYTHON_CLIENT_MEM_FRACTION=0.70 \
 python src/train.py \
-  --xml_path assets/mjcf/intersection3_actual_cars.xml \
+  --xml_path assets/mjcf/intersection3.xml \
   --system_config_path assets/config/intersection3.json \
   --save_path artifacts/trained_models/intersection3_<objective>_seed3.eqx \
   --objective <objective> \
@@ -221,7 +221,7 @@ python src/train.py \
 # Save prestabilizer.
 env XLA_PYTHON_CLIENT_PREALLOCATE=false XLA_PYTHON_CLIENT_MEM_FRACTION=0.70 \
 python src/train.py \
-  --xml_path assets/mjcf/intersection3_actual_cars.xml \
+  --xml_path assets/mjcf/intersection3.xml \
   --system_config_path assets/config/intersection3.json \
   --save_path artifacts/trained_models/intersection3_only_stab_seed3.eqx \
   --objective mean \
@@ -242,7 +242,7 @@ python src/train.py \
 # Evaluate controller.
 env XLA_PYTHON_CLIENT_PREALLOCATE=false XLA_PYTHON_CLIENT_MEM_FRACTION=0.70 \
 python src/evaluate.py \
-  --xml_path assets/mjcf/intersection3_actual_cars.xml \
+  --xml_path assets/mjcf/intersection3.xml \
   --checkpoint_path artifacts/trained_models/intersection3_<objective>_seed3.eqx \
   --system_config_path assets/config/intersection3.json \
   --n_rollouts 64 \
@@ -252,7 +252,7 @@ python src/evaluate.py \
 
 # Visualize rollouts.
 python src/visualize.py \
-  --xml_path assets/mjcf/intersection3_actual_cars.xml \
+  --xml_path assets/mjcf/intersection3.xml \
   --trajectories_path artifacts/eval/intersection3_<objective>_seed3/trajectories.npy \
   --qpos_dim_per_entity 3 \
   --qvel_dim_per_entity 3 \
@@ -265,7 +265,7 @@ python src/visualize.py \
 # Certify controller.
 env XLA_PYTHON_CLIENT_PREALLOCATE=false XLA_PYTHON_CLIENT_MEM_FRACTION=0.70 \
 python src/certify.py \
-  --xml_path assets/mjcf/intersection3_actual_cars.xml \
+  --xml_path assets/mjcf/intersection3.xml \
   --sys_model intersection3 \
   --system_config_path assets/config/intersection3.json \
   --objectives mean cvar pinball softmax worst_case \

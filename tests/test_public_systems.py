@@ -7,7 +7,7 @@ from pathlib import Path
 try:
     import mujoco
     from mujoco import mjx
-except ModuleNotFoundError:  # pragma: no cover - depends on the local env.
+except ModuleNotFoundError:
     mujoco = None
     mjx = None
 
@@ -23,7 +23,7 @@ PUBLIC_SYSTEMS = (
     ("corridor", "assets/mjcf/corridor.xml", "assets/config/corridor.json"),
     ("drones3_3d", "assets/mjcf/drones3_3d.xml", "assets/config/drones3_3d.json"),
     ("crazyflies3_3d", "assets/mjcf/crazyflies3_3d.xml", "assets/config/crazyflies3_3d.json"),
-    ("intersection3", "assets/mjcf/intersection3_actual_cars.xml", "assets/config/intersection3.json"),
+    ("intersection3", "assets/mjcf/intersection3.xml", "assets/config/intersection3.json"),
 )
 
 

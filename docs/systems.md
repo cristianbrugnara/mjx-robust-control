@@ -64,7 +64,7 @@ python src/check_compatibility.py \
 
 ### `intersection3`
 
-- XML: `assets/mjcf/intersection3_actual_cars.xml`
+- XML: `assets/mjcf/intersection3.xml`
 - JSON: `assets/config/intersection3.json`
 - State: three planar cars, per-car `[x, y, yaw, vx, vy, omega]`
 - Interface: `bicycle_steering`
