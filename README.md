@@ -30,7 +30,7 @@ The workflow follows four scripts:
 
 ## Robust Objectives
 
-Training minimizes a scalar rollout performance metric over randomized MJX rollouts. We denote one rollout by $D \sim p(D)$, the controller parameters by $K$, and the scalar rollout cost by $\Psi(D; K)$. Training uses a design set of sampled rollouts ${D_{\mathrm{des}}^{(i)}}*{i=1}^{m*{\mathrm{des}}}$, while certification uses an additional independent set of rollouts ${D_{\mathrm{cert}}^{(j)}}*{j=1}^{m*{\mathrm{cert}}}$.
+Training minimizes a scalar rollout performance metric over randomized MJX rollouts. We denote one rollout by $D \sim p(D)$, the controller parameters by $K$, and the scalar rollout cost by $\Psi(D; K)$. Training uses a design set of sampled rollouts $\lbrace D_{\mathrm{des}}^{(i)} \rbrace_{i=1}^{m_{\mathrm{des}}}$, while certification uses an additional independent set of rollouts $\lbrace D_{\mathrm{cert}}^{(j)} \rbrace_{j=1}^{m_{\mathrm{cert}}}$.
 
 Users select a target violation probability $\alpha \in (0,1)$ and confidence level $1-\delta$, with $\delta \in (0,1)$. The robust objectives below are intended to improve not only average performance, but also high-tail behavior.
 
