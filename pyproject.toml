@@ -19,6 +19,3 @@ dependencies = [
 gpu = [
     "jax[cuda12]==0.10.0",
 ]
-
-[tool.uv]
-package = false

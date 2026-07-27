@@ -1,7 +1,7 @@
 # Commands
 
-Run commands from the repository root. With conda, activate the environment and use the commands. With UV, use `uv run python`, e.g.
-`uv run python src/train.py ...`.
+Run commands from the repository root. Activate the conda environment first, then run the commands, e.g.
+`python src/train.py ...`.
 
 ## Generic System
 

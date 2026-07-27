@@ -60,20 +60,20 @@ def parse_args() -> argparse.Namespace:
         epilog=(
             "Examples:\n"
             "  Sequential loop through one model:\n"
-            "    uv run python src/visualize.py --xml_path assets/mjcf/corridor.xml \\\n"
+            "    python src/visualize.py --xml_path assets/mjcf/corridor.xml \\\n"
             "      --trajectories_path eval_results/model_a/trajectories.npy \\\n"
             "      --selection sequential --loop\n\n"
             "  Random rollout each loop:\n"
-            "    uv run python src/visualize.py --xml_path assets/mjcf/corridor.xml \\\n"
+            "    python src/visualize.py --xml_path assets/mjcf/corridor.xml \\\n"
             "      --trajectories_path eval_results/model_a/trajectories.npy \\\n"
             "      --selection random --loop --seed 0\n\n"
             "  Side-by-side comparison, same rollout index in each result directory:\n"
-            "    uv run python src/visualize.py --xml_path assets/mjcf/corridor.xml \\\n"
+            "    python src/visualize.py --xml_path assets/mjcf/corridor.xml \\\n"
             "      --trajectories_path eval_results/model_a/trajectories.npy \\\n"
             "      --compare_trajectories_path eval_results/model_b/trajectories.npy \\\n"
             "      --selection sequential --loop\n\n"
             "  Three planar drones, with traces:\n"
-            "    uv run python src/visualize.py --xml_path assets/mjcf/drones3_3d.xml \\\n"
+            "    python src/visualize.py --xml_path assets/mjcf/drones3_3d.xml \\\n"
             "      --trajectories_path eval_results/model_a/trajectories.npy \\\n"
             "      --dof_per_entity 3 --show_traces --top_down\n"
         ),
@@ -1488,7 +1488,7 @@ def open_video_writer(path: Path, *, fps: float):
     if imageio is None:
         raise RuntimeError(
             "Video export requires imageio with ffmpeg support. Install it with, for example, "
-            "`uv add imageio imageio-ffmpeg` or `pip install imageio imageio-ffmpeg`."
+            "`pip install imageio imageio-ffmpeg`."
         )
 
     path.parent.mkdir(parents=True, exist_ok=True)

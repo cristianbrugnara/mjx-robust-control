@@ -236,8 +236,6 @@ Clone with the MuJoCo Menagerie submodule, which provides the Crazyflie assets:
 git clone --recurse-submodules git@github.com:cristianbrugnara/mjx-robust-control.git
 ```
 
-### Conda
-
 CPU:
 
 ```bash
@@ -251,23 +249,6 @@ NVIDIA CUDA 12 GPU:
 conda env create -f env/conda-gpu.yml
 conda activate jaxmjx_gpu
 ```
-
-### UV
-
-CPU:
-
-```bash
-uv sync
-```
-
-NVIDIA CUDA 12 GPU:
-
-```bash
-uv sync --extra gpu
-```
-
-Use `uv run <command>`.
-
 
 ## Quick Start
 

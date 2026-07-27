@@ -476,12 +476,12 @@ def run_objective(objective: str, *, run_dir: Path, args: argparse.Namespace) ->
         "selected_respect_trajectories_path": str(out_dir / "selected_respect_trajectories.npy"),
         "selected_violate_trajectories_path": str(out_dir / "selected_violate_trajectories.npy"),
         "visualize_respect_command": (
-            f"uv run python src/visualize.py --xml_path {args.xml_path} "
+            f"python src/visualize.py --xml_path {args.xml_path} "
             f"--trajectories_path {out_dir / 'selected_respect_trajectories.npy'} "
             f"{viz_layout_args} --selection sequential --top_down --show_traces --playback_speed 0.35"
         ),
         "visualize_violate_command": (
-            f"uv run python src/visualize.py --xml_path {args.xml_path} "
+            f"python src/visualize.py --xml_path {args.xml_path} "
             f"--trajectories_path {out_dir / 'selected_violate_trajectories.npy'} "
             f"{viz_layout_args} --selection sequential --top_down --show_traces --playback_speed 0.35"
         ),
