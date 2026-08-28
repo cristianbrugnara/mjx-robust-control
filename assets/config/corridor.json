@@ -33,7 +33,7 @@
   "output_amplification": 1.0,
   "psi_u_inner_output_gain": 20.0,
   "std_ini_param": 0.005,
-  "use_sp": false,
+  "use_sp": true,
   "qpos_idx": null,
   "qvel_idx": null,
   "task": {

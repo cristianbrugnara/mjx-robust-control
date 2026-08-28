@@ -82,9 +82,13 @@
   "output_amplification": 0.45,
   "psi_u_inner_output_gain": 12.0,
   "std_ini_param": 0.003,
-  "use_sp": false,
+  "use_sp": true,
   "qpos_idx": null,
   "qvel_idx": null,
+  "qvel_disturbance": {
+    "std": 0.0,
+    "mask_per_entity": [1.0, 1.0, 1.0, 0.0, 0.0, 0.0]
+  },
   "control_center": [
     9.81, 0.0, 0.0, 0.0,
     9.81, 0.0, 0.0, 0.0,
