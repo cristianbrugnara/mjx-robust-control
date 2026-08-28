@@ -91,15 +91,6 @@
   "task": {
     "controller_inputs": [
       {
-        "type": "state_error",
-        "scale": 0.67,
-        "clip": null,
-        "params": {
-          "target": "xbar",
-          "sign": "current_minus_target"
-        }
-      },
-      {
         "type": "imc_residual",
         "scale": 1.0,
         "clip": null,

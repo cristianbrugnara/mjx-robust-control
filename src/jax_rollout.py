@@ -861,7 +861,7 @@ def _scan_step(
     ctrl_prediction = jnp.asarray(u_actuator, dtype=data_prediction.ctrl.dtype)
 
     data_real_next = mjx.step(mjx_model, data_real.replace(ctrl=ctrl_real))
-    data_prediction_next = mjx.step(mjx_model, data_prediction.replace(ctrl=ctrl_prediction))
+    data_prediction_next = mjx.step(mjx_model, data_real.replace(ctrl=ctrl_prediction))
 
     carry_next = (data_real_next, data_prediction_next, xi_next, omega_next)
     outputs = {

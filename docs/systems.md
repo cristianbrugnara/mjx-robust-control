@@ -31,6 +31,34 @@ python src/check_compatibility.py \
 - `state_error`
 - `imc_residual`
 
+The default and recommended configuration feeds the controller only the
+`imc_residual` block, so the learned operator acts on the internal-model
+residual alone. This keeps the controller in the pure IMC form, where
+closed-loop stability is preserved by construction regardless of the learned
+weights.
+
+Additional blocks such as `state` or `state_error` may be concatenated when a
+task benefits from explicit tracking-error feedback. These introduce a direct
+state-feedback path, so their magnitude should be kept small (via `scale`) to
+stay within a comfortable stability margin. Example:
+
+```json
+"controller_inputs": [
+  {
+    "type": "state_error",
+    "scale": 0.1,
+    "clip": null,
+    "params": { "target": "xbar", "sign": "current_minus_target" }
+  },
+  {
+    "type": "imc_residual",
+    "scale": 1.0,
+    "clip": null,
+    "params": {}
+  }
+]
+```
+
 ## Cost Terms
 
 `task.cost_terms` defines scalar rollout costs. Each term has `type`, `weight`, `where`, and `params`.

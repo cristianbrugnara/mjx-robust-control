@@ -188,23 +188,6 @@
   "task": {
     "controller_inputs": [
       {
-        "type": "state_error",
-        "scale": 0.12,
-        "clip": 1.0,
-        "params": {
-          "target": "xbar",
-          "sign": "current_minus_target",
-          "zero_indices": [2, 3, 4, 5, 8, 9, 10, 11, 14, 15, 16, 17],
-          "angular_indices": [2, 8, 14]
-        }
-      },
-      {
-        "type": "state",
-        "scale": 0.045,
-        "clip": 1.0,
-        "params": {}
-      },
-      {
         "type": "imc_residual",
         "scale": 1.0,
         "clip": 0.35,
