@@ -7,7 +7,9 @@ Saves the best-validation checkpoint as an Equinox .eqx file with a .meta.json f
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import json
+import time
 from dataclasses import asdict, dataclass, is_dataclass
 from pathlib import Path
 from typing import Any, Callable
@@ -90,6 +92,15 @@ class TrainConfig:
     grad_clip_norm: float | None = 1.0
 
     resample_train_batch: bool = False
+    max_wall_time_seconds: float | None = None
+    resume_from_checkpoint: str | None = None
+    start_epoch: int = 0
+    progress_path: str | None = None
+    learning_curve_path: str | None = None
+    initial_elapsed_training_seconds: float = 0.0
+    progress_configured_fold_time_budget_seconds: float | None = None
+    early_stopping_epsilon: float | None = 1e-4
+    early_stopping_patience: int = 25
     verbose: bool = False
 
 
@@ -246,6 +257,80 @@ def save_metadata(save_path: Path, metadata: dict[str, Any]) -> None:
         json.dump(_jsonify(metadata), f, indent=2)
 
 
+def training_config_metadata(config: TrainConfig, spec: SystemSpec) -> dict[str, Any]:
+    """Serialize training args with the resolved system name."""
+    metadata = asdict(config)
+    metadata["sys_model"] = spec.name
+    return metadata
+
+
+def write_training_progress(
+    config: TrainConfig,
+    *,
+    save_path: Path,
+    last_epoch: int | None,
+    elapsed_this_invocation: float,
+    status: str,
+    best_val: float | None = None,
+) -> None:
+    if config.progress_path is None:
+        return
+    elapsed_total = float(config.initial_elapsed_training_seconds) + float(elapsed_this_invocation)
+    payload = {
+        "last_epoch": None if last_epoch is None else int(last_epoch),
+        "next_epoch": None if last_epoch is None else int(last_epoch) + 1,
+        "elapsed_training_seconds": elapsed_total,
+        "configured_fold_time_budget_seconds": (
+            None
+            if config.progress_configured_fold_time_budget_seconds is None
+            else float(config.progress_configured_fold_time_budget_seconds)
+        ),
+        "checkpoint_path": str(save_path),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "status": str(status),
+        "start_epoch": int(config.start_epoch),
+        "resume_from_checkpoint": config.resume_from_checkpoint,
+        "best_val": best_val,
+    }
+    path = Path(config.progress_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    tmp_path.write_text(json.dumps(_jsonify(payload), indent=2), encoding="utf-8")
+    tmp_path.replace(path)
+
+
+def append_learning_curve_point(
+    config: TrainConfig,
+    *,
+    epoch: int,
+    elapsed_this_invocation: float,
+    train_loss: float | None,
+    val_loss: float | None,
+    best_val: float | None,
+    tau: float | None,
+    status: str,
+) -> None:
+    if config.learning_curve_path is None:
+        return
+    elapsed_total = float(config.initial_elapsed_training_seconds) + float(elapsed_this_invocation)
+    payload = {
+        "epoch": int(epoch),
+        "elapsed_training_seconds": elapsed_total,
+        "train_loss": train_loss,
+        "val_loss": val_loss,
+        "best_val": best_val,
+        "tau": tau,
+        "status": str(status),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "start_epoch": int(config.start_epoch),
+        "resume_from_checkpoint": config.resume_from_checkpoint,
+    }
+    path = Path(config.learning_curve_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(_jsonify(payload), allow_nan=False) + "\n")
+
+
 def resolve_training_values(config: TrainConfig, spec: SystemSpec) -> dict[str, Any]:
     """Merge CLI overrides with JSON defaults for training and rollout knobs."""
     return {
@@ -281,6 +366,26 @@ def make_optimizer(learning_rate: float, grad_clip_norm: float | None) -> optax.
 
 def train(config: TrainConfig) -> tuple[Controller, float, float]:
     """Train one controller and save the best validation checkpoint."""
+    invocation_started_at = time.monotonic()
+    deadline = None
+    if config.max_wall_time_seconds is not None:
+        max_wall_time_seconds = float(config.max_wall_time_seconds)
+        if max_wall_time_seconds <= 0.0:
+            raise ValueError("max_wall_time_seconds must be positive when provided.")
+        deadline = time.monotonic() + max_wall_time_seconds
+    early_stopping_enabled = config.early_stopping_epsilon is not None
+    early_stopping_epsilon = 0.0
+    early_stopping_patience = int(config.early_stopping_patience)
+    if early_stopping_enabled:
+        early_stopping_epsilon = float(config.early_stopping_epsilon)
+        if early_stopping_epsilon < 0.0:
+            raise ValueError("early_stopping_epsilon must be non-negative when provided.")
+        if early_stopping_patience < 1:
+            raise ValueError("early_stopping_patience must be positive when early stopping is enabled.")
+    start_epoch = int(config.start_epoch)
+    if start_epoch < 0:
+        raise ValueError("start_epoch must be non-negative.")
+
     spec = load_training_system(config)
     if config.dof_per_entity is not None and config.dof_per_entity != spec.dof_per_entity:
         raise ValueError(
@@ -403,6 +508,11 @@ def train(config: TrainConfig) -> tuple[Controller, float, float]:
         output_amplification=float(resolved["output_amplification"]),
         psi_u_inner_output_gain=float(resolved["psi_u_inner_output_gain"]),
     )
+    if config.resume_from_checkpoint is not None:
+        resume_path = Path(config.resume_from_checkpoint)
+        if not resume_path.exists():
+            raise FileNotFoundError(f"Missing resume checkpoint: {resume_path}")
+        controller = eqx.tree_deserialise_leaves(str(resume_path), controller)
 
     controller_params, static_controller = eqx.partition(controller, eqx.is_inexact_array)
     tau0 = jnp.asarray(0.0, dtype=x0.dtype)
@@ -434,12 +544,71 @@ def train(config: TrainConfig) -> tuple[Controller, float, float]:
         "tau": trainable["tau"].copy(),
     }
     saved_best = False
+    stale_validation_checks = 0
+    last_val_loss: float | None = None
 
     batch_size = int(max(1, min(config.batch_size, train_x0.shape[0])))
 
-    pbar = tqdm(range(int(resolved["epochs"])), desc="Training", unit="epoch")
+    total_epochs = int(resolved["epochs"])
+    if start_epoch > total_epochs:
+        raise ValueError(f"start_epoch={start_epoch} exceeds configured epochs={total_epochs}.")
+
+    if config.resume_from_checkpoint is not None:
+        val_loss = eval_step(
+            trainable,
+            (
+                valid_x0,
+                valid_qvel_disturbances,
+            ),
+        )
+        best_val = val_loss
+        best_trainable = {
+            "controller": jax.tree_util.tree_map(lambda x: x.copy(), trainable["controller"]),
+            "tau": trainable["tau"].copy(),
+        }
+        saved_best = bool(np.isfinite(float(best_val)) and save_path.exists())
+        last_val_loss = float(val_loss)
+        if not saved_best:
+            best_controller = eqx.combine(best_trainable["controller"], static_controller)
+            eqx.tree_serialise_leaves(save_path, best_controller)
+            saved_best = True
+        write_training_progress(
+            config,
+            save_path=save_path,
+            last_epoch=start_epoch - 1 if start_epoch > 0 else None,
+            elapsed_this_invocation=time.monotonic() - invocation_started_at,
+            status="resumed",
+            best_val=float(best_val),
+        )
+        append_learning_curve_point(
+            config,
+            epoch=start_epoch - 1 if start_epoch > 0 else 0,
+            elapsed_this_invocation=time.monotonic() - invocation_started_at,
+            train_loss=None,
+            val_loss=float(val_loss),
+            best_val=float(best_val),
+            tau=float(trainable["tau"]) if objective_requires_tau(config.objective) else None,
+            status="resumed",
+        )
+
+    pbar = tqdm(range(start_epoch, total_epochs), desc="Training", unit="epoch")
+    last_epoch_completed: int | None = start_epoch - 1 if start_epoch > 0 else None
 
     for epoch in pbar:
+        if deadline is not None and time.monotonic() >= deadline:
+            write_training_progress(
+                config,
+                save_path=save_path,
+                last_epoch=last_epoch_completed,
+                elapsed_this_invocation=time.monotonic() - invocation_started_at,
+                status="timeout",
+                best_val=None if not np.isfinite(float(best_val)) else float(best_val),
+            )
+            raise TimeoutError(
+                f"Training wall-clock budget of {float(config.max_wall_time_seconds):.1f}s "
+                f"expired before epoch {epoch}."
+            )
+
         if config.resample_train_batch:
             batch_x0 = sample_initial_conditions(
                 jr.fold_in(key_online_x0, epoch),
@@ -472,10 +641,13 @@ def train(config: TrainConfig) -> tuple[Controller, float, float]:
             batch_qvel_disturbances,
         )
         trainable, opt_state, train_loss = train_step(trainable, opt_state, train_batch)
+        last_epoch_completed = int(epoch)
 
         should_validate = (epoch % config.validation_period == 0) or (
             epoch == int(resolved["epochs"]) - 1
         )
+        stop_after_postfix = False
+        current_val_for_curve: float | None = None
 
         if should_validate:
             val_loss = eval_step(
@@ -486,7 +658,18 @@ def train(config: TrainConfig) -> tuple[Controller, float, float]:
                 ),
             )
 
-            if float(val_loss) < float(best_val):
+            current_val = float(val_loss)
+            current_val_for_curve = current_val
+            last_val_loss = current_val
+            previous_best = float(best_val)
+            improved = current_val < previous_best
+            meaningful_improvement = improved
+            if early_stopping_enabled and np.isfinite(previous_best):
+                improvement = previous_best - current_val
+                scale = max(abs(previous_best), 1.0)
+                meaningful_improvement = improvement > early_stopping_epsilon * scale
+
+            if improved:
                 best_val = val_loss
                 best_trainable = {
                     "controller": jax.tree_util.tree_map(lambda x: x.copy(), trainable["controller"]),
@@ -498,7 +681,7 @@ def train(config: TrainConfig) -> tuple[Controller, float, float]:
                 save_metadata(
                     save_path,
                     {
-                        "train_config": asdict(config),
+                        "train_config": training_config_metadata(config, spec),
                         "system_config": spec.to_dict(),
                         "resolved": {
                             **{k: _jsonify(v) for k, v in resolved.items()},
@@ -549,17 +732,26 @@ def train(config: TrainConfig) -> tuple[Controller, float, float]:
                             "pre_stab_K": float(resolved["pre_stab_K"]),
                             "alpha_terminal": float(resolved["alpha_terminal"]),
                         },
+                        "resume": {
+                            "resume_from_checkpoint": config.resume_from_checkpoint,
+                            "start_epoch": int(start_epoch),
+                        },
                     },
                 )
-
-            pbar.set_postfix(
-                train_loss=f"{float(train_loss):.6f}",
-                val_loss=f"{float(val_loss):.6f}",
-                best_val=f"{float(best_val):.6f}",
-                tau=f"{float(trainable['tau']):.6f}"
-                if objective_requires_tau(config.objective)
-                    else "",
+            write_training_progress(
+                config,
+                save_path=save_path,
+                last_epoch=int(epoch),
+                elapsed_this_invocation=time.monotonic() - invocation_started_at,
+                status="training",
+                best_val=float(best_val),
             )
+
+            if early_stopping_enabled:
+                if meaningful_improvement:
+                    stale_validation_checks = 0
+                else:
+                    stale_validation_checks += 1
 
             if config.verbose:
                 tau_msg = f" tau={float(trainable['tau']):.6f}" if objective_requires_tau(config.objective) else ""
@@ -575,6 +767,52 @@ def train(config: TrainConfig) -> tuple[Controller, float, float]:
                     f"{tau_msg}"
                 )
 
+            if early_stopping_enabled and stale_validation_checks >= early_stopping_patience:
+                print(
+                    "early_stopping: "
+                    f"stopped at epoch {epoch} after {stale_validation_checks} validation checks "
+                    f"without > {early_stopping_epsilon:g} relative validation improvement."
+                )
+                stop_after_postfix = True
+
+        pbar.set_postfix(
+            train_loss=f"{float(train_loss):.6f}",
+            last_val_loss="" if last_val_loss is None else f"{last_val_loss:.6f}",
+            best_val=f"{float(best_val):.6f}",
+            stale=stale_validation_checks if early_stopping_enabled else "",
+            tau=f"{float(trainable['tau']):.6f}"
+            if objective_requires_tau(config.objective)
+                else "",
+            refresh=False,
+        )
+        append_learning_curve_point(
+            config,
+            epoch=int(epoch),
+            elapsed_this_invocation=time.monotonic() - invocation_started_at,
+            train_loss=float(train_loss),
+            val_loss=current_val_for_curve,
+            best_val=None if not np.isfinite(float(best_val)) else float(best_val),
+            tau=float(trainable["tau"]) if objective_requires_tau(config.objective) else None,
+            status="training",
+        )
+
+        if stop_after_postfix:
+            break
+
+        if deadline is not None and time.monotonic() >= deadline:
+            write_training_progress(
+                config,
+                save_path=save_path,
+                last_epoch=last_epoch_completed,
+                elapsed_this_invocation=time.monotonic() - invocation_started_at,
+                status="timeout",
+                best_val=None if not np.isfinite(float(best_val)) else float(best_val),
+            )
+            raise TimeoutError(
+                f"Training wall-clock budget of {float(config.max_wall_time_seconds):.1f}s "
+                f"expired after epoch {epoch}."
+            )
+
     if not saved_best or not np.isfinite(float(best_val)) or not save_path.exists():
         raise RuntimeError(
             "Training did not produce a finite validation checkpoint. "
@@ -582,6 +820,14 @@ def train(config: TrainConfig) -> tuple[Controller, float, float]:
             "Try a smaller learning rate/std_ini, mean objective first, or inspect rollout stability."
         )
 
+    write_training_progress(
+        config,
+        save_path=save_path,
+        last_epoch=last_epoch_completed,
+        elapsed_this_invocation=time.monotonic() - invocation_started_at,
+        status="complete",
+        best_val=float(best_val),
+    )
     best_controller = eqx.combine(best_trainable["controller"], static_controller)
     return best_controller, float(best_val), float(best_trainable["tau"])
 
@@ -619,6 +865,41 @@ def parse_args() -> TrainConfig:
         "--resample_train_batch",
         action="store_true",
         help="Sample a fresh randomized train batch every epoch instead of reusing the finite train set.",
+    )
+    parser.add_argument(
+        "--max_wall_time_seconds",
+        type=float,
+        default=None,
+        help="Optional wall-clock training budget. Checked between epochs.",
+    )
+    parser.add_argument("--resume_from_checkpoint", type=str, default=None)
+    parser.add_argument("--start_epoch", type=int, default=0)
+    parser.add_argument("--progress_path", type=str, default=None)
+    parser.add_argument("--learning_curve_path", type=str, default=None)
+    parser.add_argument("--initial_elapsed_training_seconds", type=float, default=0.0)
+    parser.add_argument("--progress_configured_fold_time_budget_seconds", type=float, default=None)
+    parser.add_argument(
+        "--early_stopping_epsilon",
+        type=float,
+        default=1e-4,
+        help=(
+            "Enable validation early stopping with this relative improvement tolerance. "
+            "For example, 1e-3 requires validation loss to improve by more than 0.1%% "
+            "relative to the current best to reset patience."
+        ),
+    )
+    parser.add_argument(
+        "--disable_early_stopping",
+        dest="early_stopping_epsilon",
+        action="store_const",
+        const=None,
+        help="Disable validation early stopping.",
+    )
+    parser.add_argument(
+        "--early_stopping_patience",
+        type=int,
+        default=8,
+        help="Number of validation checks to tolerate without meaningful improvement before stopping.",
     )
     parser.add_argument(
         "--verbose",
