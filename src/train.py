@@ -93,11 +93,6 @@ class TrainConfig:
     verbose: bool = False
 
 
-def zero_nominal_prediction(t: int | Array, y: Array, u: Array) -> Array:
-    del t, u
-    return y
-
-
 def load_training_system(config: TrainConfig) -> SystemSpec:
     return load_system_spec(config.system_config_path or config.sys_model)
 
@@ -395,7 +390,6 @@ def train(config: TrainConfig) -> tuple[Controller, float, float]:
     )
 
     controller = Controller(
-        zero_nominal_prediction,
         n=input_dim,
         m=int(spec.control_dim),
         n_xi=int(resolved["n_xi"]),

@@ -105,11 +105,6 @@ class _CollisionContext:
         self.position_indices = system.position_indices
 
 
-def zero_nominal_prediction(t: int | jax.Array, y: jax.Array, u: jax.Array) -> jax.Array:
-    del t, u
-    return y
-
-
 def _as_array(value: Any, *, dtype: Any = jnp.float32) -> jax.Array:
     return jnp.asarray(value, dtype=dtype)
 
@@ -360,7 +355,6 @@ def build_rollout_config(spec: EvalSpec) -> RolloutConfig:
 def build_controller_skeleton(spec: EvalSpec, mj_model: mujoco.MjModel) -> Controller:
     del mj_model
     return Controller(
-        zero_nominal_prediction,
         n=int(spec.controller_input_dim),
         m=int(spec.system.control_dim),
         n_xi=int(spec.n_xi),

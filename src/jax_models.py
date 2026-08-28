@@ -1,19 +1,17 @@
 """
 Controller architecture. PsiU is a JAX/Equinox port of acyclic REN (Recurrent Equilibrium
-Network) with Lyapunov-stable parameter constraints. PsiX wraps a nominal one-step predictor
-for the internal model. Controller assembles both, plus an optional input schedule.
+Network) with Lyapunov-stable parameter constraints. Controller wraps it and an optional
+input schedule; the IMC residual is formed by the MJX rollout, not here.
 """
 
 from __future__ import annotations
 
-from typing import Callable, Optional
+from typing import Optional
 
 import equinox as eqx
 import jax
 import jax.numpy as jnp
 import jax.random as jr
-
-Omega = tuple[jax.Array, jax.Array]
 
 
 class PsiU(eqx.Module):
@@ -109,19 +107,6 @@ class PsiU(eqx.Module):
         return self.inner_output_gain * u, xi_next
 
 
-class PsiX(eqx.Module):
-    """Wrapper around a nominal one-step predictor f(t, y, u)."""
-    f: Callable[[int | jax.Array, jax.Array, jax.Array], jax.Array] = eqx.field(static=True)
-
-    def __init__(self, f: Callable[[int | jax.Array, jax.Array, jax.Array], jax.Array]) -> None:
-        self.f = f
-
-    def __call__(self, t: int | jax.Array, omega: Omega) -> tuple[jax.Array, None]:
-        y, u = omega
-        psi_x = self.f(t, y, u)
-        return psi_x, None
-
-
 class InputSchedule(eqx.Module):
     """Port of Input; use with vmap/scan outside the module."""
 
@@ -167,13 +152,11 @@ class Controller(eqx.Module):
     use_sp: bool = eqx.field(static=True)
     output_amplification: float = eqx.field(static=True)
 
-    psi_x: PsiX
     psi_u: PsiU
     sp: Optional[InputSchedule]
 
     def __init__(
         self,
-        f: Callable[[int | jax.Array, jax.Array, jax.Array], jax.Array],
         n: int,
         m: int,
         n_xi: int,
@@ -191,7 +174,6 @@ class Controller(eqx.Module):
         self.m = m
         self.use_sp = use_sp
         self.output_amplification = output_amplification
-        self.psi_x = PsiX(f)
         self.psi_u = PsiU(
             n,
             m,
@@ -207,48 +189,14 @@ class Controller(eqx.Module):
             else None
         )
 
-    def step_from_omega(
-        self,
-        t: int | jax.Array,
-        y: jax.Array,
-        xi: jax.Array,
-        omega: Omega,
-    ) -> tuple[jax.Array, jax.Array, Omega]:
-        """Step the controller from the previous omega pair."""
-        f_hat, _ = self.psi_x(t, omega)
-        return self.step_from_prediction(t, y, xi, f_hat)
-
     def step_from_signal(
         self,
         t: int | jax.Array,
         w_hat: jax.Array,
         xi: jax.Array,
     ) -> tuple[jax.Array, jax.Array]:
-        """Evaluate the REN on an already-formed feedback signal.
-        """
+        """Evaluate the REN on an already-formed feedback signal."""
         if self.use_sp and self.sp is not None:
             w_hat = w_hat + self.sp(t)
         u, xi_next = self.psi_u(t, w_hat, xi)
         return u * self.output_amplification, xi_next
-
-    def step_from_prediction(
-        self,
-        t: int | jax.Array,
-        y: jax.Array,
-        xi: jax.Array,
-        f_hat: jax.Array,
-    ) -> tuple[jax.Array, jax.Array, Omega]:
-        """Step the controller from an externally supplied prediction."""
-        w_hat = y - f_hat
-        u, xi_next = self.step_from_signal(t, w_hat, xi)
-        omega_next = (y, u)
-        return u, xi_next, omega_next
-
-    def __call__(
-        self,
-        t: int | jax.Array,
-        y: jax.Array,
-        xi: jax.Array,
-        omega: Omega,
-    ) -> tuple[jax.Array, jax.Array, Omega]:
-        return self.step_from_omega(t, y, xi, omega)
