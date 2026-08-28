@@ -1487,8 +1487,8 @@ def overlay_video_title(
 def open_video_writer(path: Path, *, fps: float):
     if imageio is None:
         raise RuntimeError(
-            "Video export requires imageio with ffmpeg support. Install it with, for example, "
-            "`pip install imageio imageio-ffmpeg`."
+            "Video export requires imageio with ffmpeg support. Recreate or update the conda "
+            "environment from env/conda-cpu.yml or env/conda-gpu.yml."
         )
 
     path.parent.mkdir(parents=True, exist_ok=True)
