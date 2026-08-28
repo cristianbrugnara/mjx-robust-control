@@ -46,7 +46,7 @@ from workflow_utils import (
     require_explicit_task,
     resolve_task_references,
     sample_initial_conditions,
-    sample_qvel_impulses,
+    sample_qvel_disturbances,
 )
 
 Array = jax.Array
@@ -127,7 +127,7 @@ def build_loss_fn(
     def single_rollout_loss(
         controller_params: Any,
         x_real0: Array,
-        qvel_impulse: Array,
+        qvel_disturbances: Array,
     ) -> Array:
         controller = eqx.combine(controller_params, static_controller)
         data_init = build_data_init(
@@ -147,12 +147,12 @@ def build_loss_fn(
             data_init,
             t_end,
             rollout_config,
-            qvel_impulse,
+            qvel_disturbances,
         )
 
     vmapped_rollout = jax.vmap(
-        lambda x_real0, qvel_impulse, controller_params: single_rollout_loss(
-            controller_params, x_real0, qvel_impulse
+        lambda x_real0, qvel_disturbances, controller_params: single_rollout_loss(
+            controller_params, x_real0, qvel_disturbances
         ),
         in_axes=(0, 0, None),
     )
@@ -161,10 +161,10 @@ def build_loss_fn(
         trainable: dict[str, Array],
         batch: tuple[Array, Array],
     ) -> Array:
-        batch_x0, batch_qvel_impulses = batch
+        batch_x0, batch_qvel_disturbances = batch
         losses = vmapped_rollout(
             batch_x0,
-            batch_qvel_impulses,
+            batch_qvel_disturbances,
             trainable["controller"],
         )
         return objective_fn(losses, trainable["tau"])
@@ -345,10 +345,10 @@ def train(config: TrainConfig) -> tuple[Controller, float, float]:
         key_train,
         key_valid,
         key_batch,
-        key_train_impulse,
-        key_valid_impulse,
+        key_train_disturbance,
+        key_valid_disturbance,
         key_online_x0,
-        key_online_impulse,
+        key_online_disturbance,
     ) = jr.split(key, 8)
 
     init_mask = spec.init_noise_mask(dtype=x0.dtype)
@@ -372,16 +372,18 @@ def train(config: TrainConfig) -> tuple[Controller, float, float]:
         entity_state_dim=spec.entity_state_dim,
         quaternion_indices_per_entity=spec.quaternion_indices_per_entity,
     )
-    train_qvel_impulses = sample_qvel_impulses(
-        key_train_impulse,
+    train_qvel_disturbances = sample_qvel_disturbances(
+        key_train_disturbance,
         spec,
         n_samples=config.n_train,
+        t_end=int(spec.t_end),
         dtype=x0.dtype,
     )
-    valid_qvel_impulses = sample_qvel_impulses(
-        key_valid_impulse,
+    valid_qvel_disturbances = sample_qvel_disturbances(
+        key_valid_disturbance,
         spec,
         n_samples=config.n_valid,
+        t_end=int(spec.t_end),
         dtype=x0.dtype,
     )
     input_dim = controller_input_dim_from_blocks(
@@ -449,24 +451,25 @@ def train(config: TrainConfig) -> tuple[Controller, float, float]:
                 entity_state_dim=spec.entity_state_dim,
                 quaternion_indices_per_entity=spec.quaternion_indices_per_entity,
             )
-            batch_qvel_impulses = sample_qvel_impulses(
-                jr.fold_in(key_online_impulse, epoch),
+            batch_qvel_disturbances = sample_qvel_disturbances(
+                jr.fold_in(key_online_disturbance, epoch),
                 spec,
                 n_samples=batch_size,
+                t_end=int(spec.t_end),
                 dtype=x0.dtype,
             )
         elif batch_size == train_x0.shape[0]:
             batch_x0 = train_x0
-            batch_qvel_impulses = train_qvel_impulses
+            batch_qvel_disturbances = train_qvel_disturbances
         else:
             epoch_key = jr.fold_in(key_batch, epoch)
             inds = jr.permutation(epoch_key, train_x0.shape[0])[:batch_size]
             batch_x0 = train_x0[inds]
-            batch_qvel_impulses = train_qvel_impulses[inds]
+            batch_qvel_disturbances = train_qvel_disturbances[inds]
 
         train_batch = (
             batch_x0,
-            batch_qvel_impulses,
+            batch_qvel_disturbances,
         )
         trainable, opt_state, train_loss = train_step(trainable, opt_state, train_batch)
 
@@ -479,7 +482,7 @@ def train(config: TrainConfig) -> tuple[Controller, float, float]:
                 trainable,
                 (
                     valid_x0,
-                    valid_qvel_impulses,
+                    valid_qvel_disturbances,
                 ),
             )
 
@@ -525,7 +528,7 @@ def train(config: TrainConfig) -> tuple[Controller, float, float]:
                             "actuator_ctrl_high": actuator_ctrl_high,
                             "control_center": rollout_config.control_center,
                             "control_interface": spec.control_interface,
-                            "qvel_impulse": spec.qvel_impulse,
+                            "qvel_disturbance": spec.qvel_disturbance,
                             "alpha_terminal": float(resolved["alpha_terminal"]),
                             "controller_input_dim": int(input_dim),
                             "grad_clip_norm": resolved["grad_clip_norm"],

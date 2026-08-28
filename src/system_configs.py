@@ -38,14 +38,11 @@ class ObstacleSpec:
 
 
 @dataclass(frozen=True)
-class QVelImpulseSpec:
-    """Optional per-rollout velocity impulse applied during MJX rollout."""
+class QVelDisturbanceSpec:
+    """Optional per-step Gaussian qvel disturbance applied during MJX rollout."""
 
-    step: int
-    indices: tuple[int, ...]
-    sample_low: tuple[float, ...]
-    sample_high: tuple[float, ...]
-    apply_to_prediction: bool = False
+    std: float
+    mask_per_entity: tuple[float, ...]
 
 
 @dataclass(frozen=True)
@@ -290,7 +287,7 @@ class SystemSpec:
     policy_control_low: tuple[float, ...] = ()
     policy_control_high: tuple[float, ...] = ()
     control_interface: ControlInterfaceSpec = field(default_factory=ControlInterfaceSpec)
-    qvel_impulse: QVelImpulseSpec | None = None
+    qvel_disturbance: QVelDisturbanceSpec | None = None
     mjx_disable_constraints: bool = False
 
     @property
@@ -377,15 +374,16 @@ class SystemSpec:
         raw["control_interface"] = ControlInterfaceSpec.from_dict(raw.get("control_interface"))
         raw["mjx_disable_constraints"] = bool(raw.get("mjx_disable_constraints", False))
         if raw.get("qvel_impulse") is not None:
-            impulse = raw["qvel_impulse"]
-            raw["qvel_impulse"] = (
-                impulse if isinstance(impulse, QVelImpulseSpec)
-                else QVelImpulseSpec(
-                    step=int(impulse["step"]),
-                    indices=tuple(int(v) for v in impulse["indices"]),
-                    sample_low=tuple(float(v) for v in impulse["sample_low"]),
-                    sample_high=tuple(float(v) for v in impulse["sample_high"]),
-                    apply_to_prediction=bool(impulse.get("apply_to_prediction", False)),
+            raise ValueError(
+                "qvel_impulse has been removed; use qvel_disturbance with std/mask_per_entity instead."
+            )
+        if raw.get("qvel_disturbance") is not None:
+            disturbance = raw["qvel_disturbance"]
+            raw["qvel_disturbance"] = (
+                disturbance if isinstance(disturbance, QVelDisturbanceSpec)
+                else QVelDisturbanceSpec(
+                    std=float(disturbance.get("std", 0.0)),
+                    mask_per_entity=tuple(float(v) for v in disturbance["mask_per_entity"]),
                 )
             )
         return cls(**raw)
@@ -459,22 +457,15 @@ class SystemSpec:
                 raise ValueError(f"System '{self.name}' has invalid quaternion indices.")
         if self.qpos_dim_per_entity_resolved <= 0 or self.qvel_dim_per_entity_resolved <= 0:
             raise ValueError(f"System '{self.name}' qpos/qvel dimensions must be positive.")
-        if self.qvel_impulse is not None:
-            impulse = self.qvel_impulse
-            if impulse.step < 0 or impulse.step >= self.t_end:
+        if self.qvel_disturbance is not None:
+            disturbance = self.qvel_disturbance
+            if disturbance.std < 0.0:
+                raise ValueError(f"System '{self.name}' qvel_disturbance.std must be non-negative.")
+            if len(disturbance.mask_per_entity) != self.qvel_dim_per_entity_resolved:
                 raise ValueError(
-                    f"System '{self.name}' qvel_impulse.step must be in [0, {self.t_end})."
+                    f"System '{self.name}' qvel_disturbance.mask_per_entity must have length "
+                    f"{self.qvel_dim_per_entity_resolved}."
                 )
-            if not impulse.indices:
-                raise ValueError(f"System '{self.name}' qvel_impulse.indices cannot be empty.")
-            if len(impulse.indices) != len(impulse.sample_low) or len(impulse.indices) != len(impulse.sample_high):
-                raise ValueError(
-                    f"System '{self.name}' qvel_impulse indices/sample_low/sample_high lengths must match."
-                )
-            if any(i < 0 or i >= self.n_agents * self.qvel_dim_per_entity_resolved for i in impulse.indices):
-                raise ValueError(f"System '{self.name}' qvel_impulse has an invalid qvel index.")
-            if any(lo > hi for lo, hi in zip(impulse.sample_low, impulse.sample_high)):
-                raise ValueError(f"System '{self.name}' qvel_impulse has sample_low > sample_high.")
         self.task.validate(self)
         if self.pre_stab_mode not in ("none", "direct_position", "quadrotor_position"):
             raise ValueError(
@@ -603,6 +594,7 @@ __all__ = [
     "CostTermSpec",
     "MetricSpec",
     "ObstacleSpec",
+    "QVelDisturbanceSpec",
     "ReferenceSpec",
     "SystemSpec",
     "TaskSpec",

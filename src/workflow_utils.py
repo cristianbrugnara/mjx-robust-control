@@ -218,13 +218,6 @@ def build_rollout_config(
         dof_per_entity=system.dof_per_entity,
         qpos_dim_per_entity=system.qpos_dim_per_entity_resolved,
         qvel_dim_per_entity=system.qvel_dim_per_entity_resolved,
-        qvel_impulse_step=(
-            int(system.qvel_impulse.step) if system.qvel_impulse is not None else None
-        ),
-        qvel_impulse_apply_to_prediction=(
-            bool(system.qvel_impulse.apply_to_prediction)
-            if system.qvel_impulse is not None else False
-        ),
         alpha_terminal=alpha_terminal,
         pre_stab_K=pre_stab_K,
         controller_input_clip=controller_input_clip,
@@ -269,25 +262,25 @@ def sample_initial_conditions(
     return samples
 
 
-def sample_qvel_impulses(
+def sample_qvel_disturbances(
     key: Array,
     spec: SystemSpec,
     *,
     n_samples: int,
+    t_end: int,
     dtype: Any = jnp.float32,
 ) -> Array:
-    """Draw full-nv qvel impulse vectors, zero outside configured indices."""
+    """Draw per-step Gaussian qvel disturbances for each rollout."""
     qvel_dim = spec.n_agents * spec.qvel_dim_per_entity_resolved
-    if spec.qvel_impulse is None:
-        return jnp.zeros((n_samples, qvel_dim), dtype=dtype)
-    impulse = spec.qvel_impulse
-    low = jnp.asarray(impulse.sample_low, dtype=dtype)
-    high = jnp.asarray(impulse.sample_high, dtype=dtype)
-    uniform = jr.uniform(key, (n_samples, low.shape[0]), dtype=dtype)
-    sampled = low[None, :] + uniform * (high - low)[None, :]
-    out = jnp.zeros((n_samples, qvel_dim), dtype=dtype)
-    idx = jnp.asarray(impulse.indices, dtype=jnp.int32)
-    return out.at[:, idx].set(sampled)
+    if spec.qvel_disturbance is None:
+        return jnp.zeros((n_samples, t_end, qvel_dim), dtype=dtype)
+    disturbance = spec.qvel_disturbance
+    mask = jnp.tile(
+        jnp.asarray(disturbance.mask_per_entity, dtype=dtype),
+        spec.n_agents,
+    )
+    noise = jr.normal(key, (n_samples, t_end, qvel_dim), dtype=dtype)
+    return float(disturbance.std) * noise * mask[None, None, :]
 
 
 def build_data_init(

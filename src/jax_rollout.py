@@ -66,8 +66,6 @@ class RolloutConfig(eqx.Module):
     control_interface_params: tuple[tuple[str, Any], ...] = eqx.field(static=True, default=())
     qpos_dim_per_entity: int = eqx.field(static=True, default=2)
     qvel_dim_per_entity: int = eqx.field(static=True, default=2)
-    qvel_impulse_step: int | None = eqx.field(static=True, default=None)
-    qvel_impulse_apply_to_prediction: bool = eqx.field(static=True, default=False)
 
     alpha_terminal: float = eqx.field(static=True, default=5.0)
     pre_stab_K: float = eqx.field(static=True, default=0.0)
@@ -815,22 +813,18 @@ def _controller_step(controller_params: Any, t: jax.Array, w_hat: jax.Array, xi:
     return controller_params.step_from_signal(t, w_hat, xi)
 
 
-def _apply_qvel_impulse(
+def _apply_qvel_disturbance(
     data: Any,
     t: jax.Array,
     config: RolloutConfig,
-    qvel_impulse: jax.Array | None,
+    qvel_disturbances: jax.Array | None,
 ) -> Any:
-    """Apply a sampled qvel impulse at the configured rollout step."""
-    if config.qvel_impulse_step is None or qvel_impulse is None:
+    """Apply the sampled qvel disturbance for the current rollout step."""
+    del config
+    if qvel_disturbances is None:
         return data
-    impulse = jnp.asarray(qvel_impulse, dtype=data.qvel.dtype)
-    return jax.lax.cond(
-        t == int(config.qvel_impulse_step),
-        lambda d: d.replace(qvel=d.qvel + impulse),
-        lambda d: d,
-        data,
-    )
+    disturbance_t = jnp.asarray(qvel_disturbances[t], dtype=data.qvel.dtype)
+    return data.replace(qvel=data.qvel + disturbance_t)
 
 
 def _scan_step(
@@ -839,14 +833,12 @@ def _scan_step(
     loss_weights: RolloutConfig,
     carry: RolloutCarry,
     t: jax.Array,
-    qvel_impulse: jax.Array | None = None,
+    qvel_disturbances: jax.Array | None = None,
 ) -> tuple[RolloutCarry, dict[str, jax.Array]]:
     """Advance one MJX step and collect rollout diagnostics."""
     data_real, data_prediction, xi, omega = carry
 
-    data_real = _apply_qvel_impulse(data_real, t, loss_weights, qvel_impulse)
-    if loss_weights.qvel_impulse_apply_to_prediction:
-        data_prediction = _apply_qvel_impulse(data_prediction, t, loss_weights, qvel_impulse)
+    data_real = _apply_qvel_disturbance(data_real, t, loss_weights, qvel_disturbances)
 
     x_real = extract_flat_state(
         data_real,
@@ -916,7 +908,7 @@ def rollout(
     data_init: RolloutCarry,
     t_end: int,
     loss_weights: RolloutConfig,
-    qvel_impulse: jax.Array | None = None,
+    qvel_disturbances: jax.Array | None = None,
 ) -> jax.Array:
     def scan_body(carry: RolloutCarry, t: jax.Array):
         return _scan_step(
@@ -925,7 +917,7 @@ def rollout(
             loss_weights,
             carry,
             t,
-            qvel_impulse,
+            qvel_disturbances,
         )
 
     final_carry, outputs = jax.lax.scan(scan_body, data_init, jnp.arange(t_end))
@@ -945,7 +937,7 @@ def rollout_with_trajectory(
     data_init: RolloutCarry,
     t_end: int,
     loss_weights: RolloutConfig,
-    qvel_impulse: jax.Array | None = None,
+    qvel_disturbances: jax.Array | None = None,
 ) -> tuple[jax.Array, jax.Array, jax.Array]:
     def scan_body(carry: RolloutCarry, t: jax.Array):
         return _scan_step(
@@ -954,7 +946,7 @@ def rollout_with_trajectory(
             loss_weights,
             carry,
             t,
-            qvel_impulse,
+            qvel_disturbances,
         )
 
     final_carry, outputs = jax.lax.scan(scan_body, data_init, jnp.arange(t_end))
@@ -978,7 +970,7 @@ __all__ = [
     "extract_flat_state",
     "policy_to_actuator_control",
     "pre_stabilizing_control",
-    "_apply_qvel_impulse",
+    "_apply_qvel_disturbance",
     "_quadrotor_policy_to_wrench_actuators",
     "rollout",
     "rollout_with_trajectory",

@@ -44,7 +44,7 @@ from workflow_utils import (
     require_explicit_task,
     resolve_task_references,
     sample_initial_conditions,
-    sample_qvel_impulses,
+    sample_qvel_disturbances,
 )
 
 
@@ -427,7 +427,7 @@ def main() -> None:
     controller = eqx.tree_deserialise_leaves(args.checkpoint_path, controller_skeleton)
 
     key = jr.PRNGKey(args.seed)
-    key_x0, key_impulse = jr.split(key, 2)
+    key_x0, key_disturbance = jr.split(key, 2)
     x0_batch = sample_initial_conditions(
         key_x0,
         spec.x0,
@@ -438,10 +438,11 @@ def main() -> None:
         entity_state_dim=spec.system.entity_state_dim,
         quaternion_indices_per_entity=spec.system.quaternion_indices_per_entity,
     )
-    qvel_impulse_batch = sample_qvel_impulses(
-        key_impulse,
+    qvel_disturbance_batch = sample_qvel_disturbances(
+        key_disturbance,
         spec.system,
         n_samples=args.n_rollouts,
+        t_end=int(spec.t_end),
         dtype=spec.x0.dtype,
     )
 
@@ -451,7 +452,7 @@ def main() -> None:
 
     def single_eval(
         x_real0: jax.Array,
-        qvel_impulse: jax.Array,
+        qvel_disturbances: jax.Array,
     ) -> tuple[jax.Array, jax.Array, jax.Array]:
         data_init = build_data_init(
             data_template,
@@ -470,7 +471,7 @@ def main() -> None:
             data_init,
             spec.t_end,
             rollout_config,
-            qvel_impulse,
+            qvel_disturbances,
         )
 
     batched_eval = jax.jit(jax.vmap(single_eval))
@@ -485,7 +486,7 @@ def main() -> None:
         end = min(start + eval_batch_size, args.n_rollouts)
         costs_i, trajectories_i, controls_i = batched_eval(
             x0_batch[start:end],
-            qvel_impulse_batch[start:end],
+            qvel_disturbance_batch[start:end],
         )
         cost_batches.append(np.asarray(costs_i))
         trajectory_batches.append(np.asarray(trajectories_i))
@@ -503,7 +504,7 @@ def main() -> None:
     np.save(output_dir / "controls.npy", controls_np)
     np.save(output_dir / "costs.npy", costs_np)
     np.save(output_dir / "initial_states.npy", np.asarray(x0_batch))
-    np.save(output_dir / "disturbances.npy", np.asarray(qvel_impulse_batch))
+    np.save(output_dir / "disturbances.npy", np.asarray(qvel_disturbance_batch))
 
     collision_ctx = _CollisionContext(spec.system)
     per_rollout_collisions = np.asarray(
@@ -593,9 +594,9 @@ def main() -> None:
         "alpha_terminal": float(spec.alpha_terminal),
         "initial_states_file": "initial_states.npy",
         "disturbances_file": "disturbances.npy",
-        "qvel_impulse": (
-            asdict(spec.system.qvel_impulse)
-            if spec.system.qvel_impulse is not None else None
+        "qvel_disturbance": (
+            asdict(spec.system.qvel_disturbance)
+            if spec.system.qvel_disturbance is not None else None
         ),
     }
 

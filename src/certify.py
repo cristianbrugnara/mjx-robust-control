@@ -35,7 +35,7 @@ from evaluate import (
 from workflow_utils import (
         build_data_init,
         sample_initial_conditions,
-        sample_qvel_impulses,
+        sample_qvel_disturbances,
     )
 from jax_rollout import rollout_with_trajectory
 from system_configs import apply_mjx_model_options
@@ -169,7 +169,7 @@ def evaluate_checkpoint(
     controller = eqx.tree_deserialise_leaves(str(checkpoint_path), controller_skeleton)
 
     key = jax.random.PRNGKey(int(seed))
-    key_x0, key_impulse = jax.random.split(key, 2)
+    key_x0, key_disturbance = jax.random.split(key, 2)
     x0_batch = sample_initial_conditions(
         key_x0,
         spec.x0,
@@ -180,10 +180,11 @@ def evaluate_checkpoint(
         entity_state_dim=spec.system.entity_state_dim,
         quaternion_indices_per_entity=spec.system.quaternion_indices_per_entity,
     )
-    qvel_impulse_batch = sample_qvel_impulses(
-        key_impulse,
+    qvel_disturbance_batch = sample_qvel_disturbances(
+        key_disturbance,
         spec.system,
         n_samples=int(n_rollouts),
+        t_end=int(spec.t_end),
         dtype=spec.x0.dtype,
     )
 
@@ -191,7 +192,7 @@ def evaluate_checkpoint(
     xi_dim = controller.psi_u.n_xi
     ctrl_dim = int(mj_model.nu)
 
-    def single_eval(x_real0: Any, qvel_impulse: Any) -> tuple[Any, Any, Any]:
+    def single_eval(x_real0: Any, qvel_disturbances: Any) -> tuple[Any, Any, Any]:
         data_init = build_data_init(
             data_template,
             x_real0,
@@ -209,12 +210,12 @@ def evaluate_checkpoint(
             data_init,
             spec.t_end,
             rollout_config,
-            qvel_impulse,
+            qvel_disturbances,
         )
 
     costs, trajectories, controls = jax.jit(jax.vmap(single_eval))(
         x0_batch,
-        qvel_impulse_batch,
+        qvel_disturbance_batch,
     )
     return {
         "spec": spec,
@@ -222,7 +223,7 @@ def evaluate_checkpoint(
         "trajectories": np.asarray(trajectories),
         "controls": np.asarray(controls),
         "initial_states": np.asarray(x0_batch),
-        "disturbances": np.asarray(qvel_impulse_batch),
+        "disturbances": np.asarray(qvel_disturbance_batch),
     }
 
 
