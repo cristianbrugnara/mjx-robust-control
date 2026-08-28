@@ -515,6 +515,7 @@ def pre_stabilizing_control(x: jax.Array, config: RolloutConfig) -> jax.Array:
 
         pos = x_by_entity[:, 0:3]
         goal = xbar_by_entity[:, 0:3]
+        quat = x_by_entity[:, 3:7]
         vel = x_by_entity[:, 7:10]
 
         e = goal - pos
@@ -523,20 +524,29 @@ def pre_stabilizing_control(x: jax.Array, config: RolloutConfig) -> jax.Array:
         kd_xy = jnp.asarray(float(params.get("pre_stab_kd_xy", 0.35)), dtype=x.dtype)
         kp_z = jnp.asarray(float(params.get("pre_stab_kp_z", 1.20)), dtype=x.dtype)
         kd_z = jnp.asarray(float(params.get("pre_stab_kd_z", 0.70)), dtype=x.dtype)
+        kp_yaw = jnp.asarray(float(params.get("pre_stab_kp_yaw", 0.6)), dtype=x.dtype)
 
         max_tilt = jnp.asarray(float(params.get("pre_stab_max_tilt", 0.18)), dtype=x.dtype)
         max_thrust_delta = jnp.asarray(float(params.get("pre_stab_max_thrust_delta", 3.0)), dtype=x.dtype)
+        max_yaw_rate = jnp.asarray(float(params.get("pre_stab_max_yaw_rate", 1.0)), dtype=x.dtype)
 
         collective_delta = kp_z * e[:, 2] - kd_z * vel[:, 2]
         collective_delta = jnp.clip(collective_delta, -max_thrust_delta, max_thrust_delta)
 
-        roll_cmd = -(kp_xy * e[:, 1] - kd_xy * vel[:, 1])
-        pitch_cmd = kp_xy * e[:, 0] - kd_xy * vel[:, 0]
+        ax = kp_xy * e[:, 0] - kd_xy * vel[:, 0]
+        ay = kp_xy * e[:, 1] - kd_xy * vel[:, 1]
+        psi = jax.vmap(_quat_to_yaw)(quat)
+        cpsi = jnp.cos(psi)
+        spsi = jnp.sin(psi)
+        pitch_cmd = cpsi * ax + spsi * ay
+        roll_cmd = -(-spsi * ax + cpsi * ay)
 
         roll_cmd = jnp.clip(roll_cmd, -max_tilt, max_tilt)
         pitch_cmd = jnp.clip(pitch_cmd, -max_tilt, max_tilt)
 
-        yaw_rate_cmd = jnp.zeros_like(roll_cmd)
+        psi_ref = jax.vmap(_quat_to_yaw)(xbar_by_entity[:, 3:7])
+        yaw_err = jnp.arctan2(jnp.sin(psi_ref - psi), jnp.cos(psi_ref - psi))
+        yaw_rate_cmd = jnp.clip(kp_yaw * yaw_err, -max_yaw_rate, max_yaw_rate)
 
         u_by_entity = jnp.stack(
             [collective_delta, roll_cmd, pitch_cmd, yaw_rate_cmd],
@@ -596,11 +606,27 @@ def squash_or_clip_control(u_raw: jax.Array, config: RolloutConfig) -> jax.Array
 
     low = jnp.asarray(config.ctrl_low, dtype=u_raw.dtype)
     high = jnp.asarray(config.ctrl_high, dtype=u_raw.dtype)
-    center = 0.5 * (low + high)
-    half_width = 0.5 * (high - low) * (1.0 - jnp.asarray(config.control_margin, dtype=u_raw.dtype))
-    finite = jnp.isfinite(low) & jnp.isfinite(high) & (half_width > 0.0)
-    squashed = center + half_width * jnp.tanh((u_raw - center) / jnp.maximum(half_width, 1.0e-6))
-    return jnp.where(finite, squashed, u_raw)
+    margin = jnp.asarray(config.control_margin, dtype=u_raw.dtype)
+
+    if config.control_center is None:
+        center = 0.5 * (low + high)
+    else:
+        center = jnp.asarray(config.control_center, dtype=u_raw.dtype)
+
+    up = (high - center) * (1.0 - margin)
+    dn = (center - low) * (1.0 - margin)
+    d = u_raw - center
+
+    up_safe = jnp.where(up > 0.0, up, 1.0)
+    dn_safe = jnp.where(dn > 0.0, dn, 1.0)
+    squashed = center + jnp.where(
+        d >= 0.0,
+        up * jnp.tanh(d / up_safe),
+        dn * jnp.tanh(d / dn_safe),
+    )
+
+    finite = jnp.isfinite(low) & jnp.isfinite(high) & (up > 0.0) & (dn > 0.0)
+    return jnp.where(finite, squashed, jnp.clip(u_raw, low, high))
 
 
 def _control_interface_params(config: RolloutConfig) -> dict[str, Any]:
@@ -617,6 +643,16 @@ def _quat_to_roll_pitch(q: jax.Array) -> tuple[jax.Array, jax.Array]:
     pitch_sin = jnp.clip(2.0 * (qw * qy - qz * qx), -1.0, 1.0)
     pitch = jnp.arcsin(pitch_sin)
     return roll, pitch
+
+
+def _quat_to_yaw(q: jax.Array) -> jax.Array:
+    """Yaw (rotation about world z) from a quaternion, same ZYX family as _quat_to_roll_pitch."""
+    q = q / jnp.maximum(jnp.linalg.norm(q), jnp.asarray(1.0e-8, dtype=q.dtype))
+    qw, qx, qy, qz = q
+    return jnp.arctan2(
+        2.0 * (qw * qz + qx * qy),
+        1.0 - 2.0 * (qy * qy + qz * qz),
+    )
 
 
 def _bicycle_steering_to_actuators(x: jax.Array, u_policy: jax.Array, config: RolloutConfig) -> jax.Array:

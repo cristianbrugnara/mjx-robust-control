@@ -25,22 +25,24 @@
     "params": {
       "arm_length": 0.0325,
       "yaw_reaction_coeff": 0.000057,
-      "roll_kp": 0.00008,
-      "roll_kd": 0.00002,
-      "pitch_kp": 0.00008,
-      "pitch_kd": 0.00002,
-      "yaw_rate_kp": 0.000004,
+      "roll_kp": 0.0004,
+      "roll_kd": 0.00016,
+      "pitch_kp": 0.0004,
+      "pitch_kd": 0.00016,
+      "yaw_rate_kp": 0.00005,
       "rotor_min": 0.0,
       "rotor_max": 0.0875,
       "quaternion_indices": [3, 4, 5, 6],
       "omega_indices": [10, 11, 12],
 
-      "pre_stab_kp_xy": 0.014,
-      "pre_stab_kd_xy": 0.06,
+      "pre_stab_kp_xy": 0.08,
+      "pre_stab_kd_xy": 0.16,
       "pre_stab_kp_z": 0.18,
       "pre_stab_kd_z": 0.07,
-      "pre_stab_max_tilt": 0.04,
-      "pre_stab_max_thrust_delta": 0.055
+      "pre_stab_max_tilt": 0.10,
+      "pre_stab_max_thrust_delta": 0.055,
+      "pre_stab_kp_yaw": 0.7,
+      "pre_stab_max_yaw_rate": 1.0
     }
   },
   "x0": [

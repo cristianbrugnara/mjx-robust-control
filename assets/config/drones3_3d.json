@@ -40,7 +40,9 @@
       "pre_stab_kp_z": 1.17,
       "pre_stab_kd_z": 0.6,
       "pre_stab_max_tilt": 0.18,
-      "pre_stab_max_thrust_delta": 3.0
+      "pre_stab_max_thrust_delta": 3.0,
+      "pre_stab_kp_yaw": 0.8,
+      "pre_stab_max_yaw_rate": 1.0
           }
   },
   "x0": [
