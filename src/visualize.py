@@ -53,6 +53,492 @@ class TrajectorySet:
         return int(self.trajectories.shape[2])
 
 
+@dataclass(frozen=True)
+class StaticPlotResult:
+    path: str
+    kind: str
+    xlim: tuple[float, float] | None
+    ylim: tuple[float, float] | None
+
+
+@dataclass(frozen=True)
+class ReviewVideoPlan:
+    evidence_id: str
+    controller_label: str
+    title: str
+    output_path: str
+    rollout_index: int
+    trajectories_path: str
+
+
+def _pyplot():
+    import matplotlib
+
+    matplotlib.use("Agg", force=True)
+    import matplotlib.pyplot as plt
+
+    return plt
+
+
+def _finite_limits(*arrays: np.ndarray, pad_fraction: float = 0.05) -> tuple[float, float] | None:
+    finite_parts = []
+    for array in arrays:
+        values = np.asarray(array, dtype=np.float64).ravel()
+        values = values[np.isfinite(values)]
+        if values.size:
+            finite_parts.append(values)
+    if not finite_parts:
+        return None
+    values = np.concatenate(finite_parts)
+    low = float(values.min())
+    high = float(values.max())
+    if low == high:
+        pad = 1.0 if low == 0.0 else abs(low) * pad_fraction
+        return low - pad, high + pad
+    pad = (high - low) * pad_fraction
+    return low - pad, high + pad
+
+
+def _axis_span(limits: tuple[float, float]) -> float:
+    span = float(limits[1] - limits[0])
+    return span if np.isfinite(span) and span > 0.0 else 1.0
+
+
+def _readable_3d_box_aspect(
+    xlim: tuple[float, float],
+    ylim: tuple[float, float],
+    zlim: tuple[float, float],
+    *,
+    min_z_fraction: float = 0.55,
+) -> tuple[float, float, float]:
+    x_span = _axis_span(xlim)
+    y_span = _axis_span(ylim)
+    z_span = _axis_span(zlim)
+    z_span = max(z_span, max(x_span, y_span) * float(min_z_fraction))
+    return x_span, y_span, z_span
+
+
+def _set_trajectory_legend(
+    ax: Any,
+    *,
+    controller_labels: Sequence[str],
+    line_styles: Sequence[str],
+    agent_colors_by_index: dict[int, Any],
+) -> None:
+    from matplotlib.lines import Line2D
+
+    handles = []
+    if len(controller_labels) > 1:
+        handles.extend(
+            Line2D(
+                [0],
+                [0],
+                color="0.2",
+                linestyle=line_styles[index % len(line_styles)],
+                linewidth=1.8,
+                label=label,
+            )
+            for index, label in enumerate(controller_labels)
+        )
+    handles.extend(
+        Line2D(
+            [0],
+            [0],
+            color=color,
+            linestyle="-",
+            linewidth=2.4,
+            label=f"Agent {agent_index + 1}",
+        )
+        for agent_index, color in sorted(agent_colors_by_index.items())
+    )
+    if handles:
+        ax.legend(handles=handles, loc="best", fontsize="small")
+
+
+def matched_axis_limits(
+    series_by_label: dict[str, np.ndarray],
+    *,
+    include_zero: bool = False,
+) -> tuple[tuple[float, float], tuple[float, float] | None]:
+    if not series_by_label:
+        raise ValueError("At least one series is required.")
+    lengths = [np.asarray(values).shape[0] for values in series_by_label.values()]
+    if min(lengths) <= 0:
+        raise ValueError("Series must not be empty.")
+    xlim = (0.0, float(max(lengths) - 1))
+    ylim = _finite_limits(*[np.asarray(values) for values in series_by_label.values()])
+    if include_zero and ylim is not None:
+        ylim = (min(0.0, ylim[0]), max(0.0, ylim[1]))
+    return xlim, ylim
+
+
+def save_static_series_plot(
+    *,
+    series_by_label: dict[str, np.ndarray],
+    output_path: str | Path,
+    title: str,
+    ylabel: str,
+    xlabel: str = "time step",
+    xlim: tuple[float, float] | None = None,
+    ylim: tuple[float, float] | None = None,
+) -> StaticPlotResult:
+    plt = _pyplot()
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    if xlim is None or ylim is None:
+        default_xlim, default_ylim = matched_axis_limits(series_by_label)
+        xlim = default_xlim if xlim is None else xlim
+        ylim = default_ylim if ylim is None else ylim
+
+    fig, ax = plt.subplots(figsize=(7.0, 4.0), dpi=120)
+    for label, values in series_by_label.items():
+        array = np.asarray(values, dtype=np.float64)
+        ax.plot(np.arange(array.shape[0]), array, label=label)
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_xlim(*xlim)
+    if ylim is not None:
+        ax.set_ylim(*ylim)
+    ax.grid(True, alpha=0.3)
+    ax.legend(loc="best")
+    fig.tight_layout()
+    fig.savefig(output)
+    plt.close(fig)
+    return StaticPlotResult(path=str(output), kind="series", xlim=xlim, ylim=ylim)
+
+
+def save_static_multi_series_plot(
+    *,
+    series_groups: dict[str, dict[str, np.ndarray]],
+    output_path: str | Path,
+    title: str,
+    ylabel: str,
+    xlabel: str = "time step",
+    xlim: tuple[float, float] | None = None,
+    ylim: tuple[float, float] | None = None,
+) -> StaticPlotResult:
+    flattened = {
+        f"{group} {name}": values
+        for group, entries in series_groups.items()
+        for name, values in entries.items()
+    }
+    if xlim is None or ylim is None:
+        default_xlim, default_ylim = matched_axis_limits(flattened)
+        xlim = default_xlim if xlim is None else xlim
+        ylim = default_ylim if ylim is None else ylim
+
+    plt = _pyplot()
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=120)
+    styles = ("-", "--", ":", "-.")
+    for group_index, (group, entries) in enumerate(series_groups.items()):
+        for name, values in entries.items():
+            array = np.asarray(values, dtype=np.float64)
+            ax.plot(
+                np.arange(array.shape[0]),
+                array,
+                linestyle=styles[group_index % len(styles)],
+                label=f"{group} {name}",
+            )
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_xlim(*xlim)
+    if ylim is not None:
+        ax.set_ylim(*ylim)
+    ax.grid(True, alpha=0.3)
+    ax.legend(loc="best", fontsize="small")
+    fig.tight_layout()
+    fig.savefig(output)
+    plt.close(fig)
+    return StaticPlotResult(path=str(output), kind="multi_series", xlim=xlim, ylim=ylim)
+
+
+def save_static_distribution_plot(
+    *,
+    values_by_label: dict[str, np.ndarray],
+    output_path: str | Path,
+    title: str,
+    ylabel: str,
+    ylim: tuple[float, float] | None = None,
+) -> StaticPlotResult:
+    plt = _pyplot()
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    labels = list(values_by_label)
+    values = [np.asarray(values_by_label[label], dtype=np.float64).ravel() for label in labels]
+    if ylim is None:
+        ylim = _finite_limits(*values)
+
+    fig, ax = plt.subplots(figsize=(6.5, 4.0), dpi=120)
+    ax.boxplot(values, tick_labels=labels, showmeans=True)
+    ax.set_title(title)
+    ax.set_ylabel(ylabel)
+    if ylim is not None:
+        ax.set_ylim(*ylim)
+    ax.grid(True, axis="y", alpha=0.3)
+    fig.tight_layout()
+    fig.savefig(output)
+    plt.close(fig)
+    return StaticPlotResult(path=str(output), kind="distribution", xlim=None, ylim=ylim)
+
+
+def save_static_trajectory_plot(
+    *,
+    positions_by_label: dict[str, np.ndarray],
+    output_path: str | Path,
+    title: str,
+    agent_colors: Sequence[Sequence[float]] | None = None,
+    xlim: tuple[float, float] | None = None,
+    ylim: tuple[float, float] | None = None,
+) -> StaticPlotResult:
+    plt = _pyplot()
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    flat_x = []
+    flat_y = []
+    for positions in positions_by_label.values():
+        array = np.asarray(positions, dtype=np.float64)
+        if array.ndim != 3 or array.shape[-1] < 2:
+            raise ValueError("Positions must have shape (time, agents, position_dim>=2).")
+        flat_x.append(array[..., 0])
+        flat_y.append(array[..., 1])
+    if xlim is None:
+        xlim = _finite_limits(*flat_x)
+    if ylim is None:
+        ylim = _finite_limits(*flat_y)
+
+    fig, ax = plt.subplots(figsize=(5.5, 5.0), dpi=120)
+    line_styles = ("-", "--", ":", "-.")
+    agent_colors_by_index = {}
+    for label_index, (label, positions) in enumerate(positions_by_label.items()):
+        array = np.asarray(positions, dtype=np.float64)
+        for agent_index in range(array.shape[1]):
+            if agent_colors is not None and agent_index < len(agent_colors):
+                color = tuple(float(channel) for channel in agent_colors[agent_index][:4])
+            else:
+                color = agent_colors_by_index.get(agent_index)
+            (line,) = ax.plot(
+                array[:, agent_index, 0],
+                array[:, agent_index, 1],
+                color=color,
+                linestyle=line_styles[label_index % len(line_styles)],
+                linewidth=1.8,
+            )
+            marker_color = line.get_color()
+            agent_colors_by_index.setdefault(agent_index, marker_color)
+            ax.scatter(
+                array[0, agent_index, 0],
+                array[0, agent_index, 1],
+                marker="o",
+                s=46,
+                color=marker_color,
+                edgecolors="white",
+                linewidths=0.6,
+                zorder=3,
+            )
+            ax.scatter(
+                array[-1, agent_index, 0],
+                array[-1, agent_index, 1],
+                marker="x",
+                s=70,
+                color=marker_color,
+                linewidths=1.8,
+                zorder=3,
+            )
+    ax.set_title(title)
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    if xlim is not None:
+        ax.set_xlim(*xlim)
+    if ylim is not None:
+        ax.set_ylim(*ylim)
+    ax.grid(True, alpha=0.3)
+    ax.set_aspect("equal", adjustable="box")
+    _set_trajectory_legend(
+        ax,
+        controller_labels=list(positions_by_label),
+        line_styles=line_styles,
+        agent_colors_by_index=agent_colors_by_index,
+    )
+    fig.tight_layout()
+    fig.savefig(output)
+    plt.close(fig)
+    return StaticPlotResult(path=str(output), kind="trajectory", xlim=xlim, ylim=ylim)
+
+
+def save_static_trajectory_3d_plot(
+    *,
+    positions_by_label: dict[str, np.ndarray],
+    output_path: str | Path,
+    title: str,
+    agent_colors: Sequence[Sequence[float]] | None = None,
+    xlim: tuple[float, float] | None = None,
+    ylim: tuple[float, float] | None = None,
+) -> StaticPlotResult:
+    plt = _pyplot()
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    flat_x = []
+    flat_y = []
+    flat_z = []
+    for positions in positions_by_label.values():
+        array = np.asarray(positions, dtype=np.float64)
+        if array.ndim != 3 or array.shape[-1] < 3:
+            raise ValueError("Positions must have shape (time, agents, position_dim>=3).")
+        flat_x.append(array[..., 0])
+        flat_y.append(array[..., 1])
+        flat_z.append(array[..., 2])
+    if xlim is None:
+        xlim = _finite_limits(*flat_x)
+    if ylim is None:
+        ylim = _finite_limits(*flat_y)
+    zlim = _finite_limits(*flat_z)
+
+    fig = plt.figure(figsize=(6.2, 5.4), dpi=120)
+    ax = fig.add_subplot(111, projection="3d")
+    if hasattr(ax, "set_proj_type"):
+        ax.set_proj_type("ortho")
+    line_styles = ("-", "--", ":", "-.")
+    agent_colors_by_index = {}
+    for label_index, (label, positions) in enumerate(positions_by_label.items()):
+        array = np.asarray(positions, dtype=np.float64)
+        for agent_index in range(array.shape[1]):
+            if agent_colors is not None and agent_index < len(agent_colors):
+                color = tuple(float(channel) for channel in agent_colors[agent_index][:4])
+            else:
+                color = agent_colors_by_index.get(agent_index)
+            (line,) = ax.plot(
+                array[:, agent_index, 0],
+                array[:, agent_index, 1],
+                array[:, agent_index, 2],
+                color=color,
+                linestyle=line_styles[label_index % len(line_styles)],
+                linewidth=1.8,
+            )
+            marker_color = line.get_color()
+            agent_colors_by_index.setdefault(agent_index, marker_color)
+            ax.scatter(
+                array[0, agent_index, 0],
+                array[0, agent_index, 1],
+                array[0, agent_index, 2],
+                marker="o",
+                s=54,
+                color=marker_color,
+                edgecolors="white",
+                linewidths=0.6,
+                depthshade=False,
+            )
+            ax.scatter(
+                array[-1, agent_index, 0],
+                array[-1, agent_index, 1],
+                array[-1, agent_index, 2],
+                marker="x",
+                s=78,
+                color=marker_color,
+                linewidths=1.8,
+                depthshade=False,
+            )
+    ax.set_title(title)
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_zlabel("z")
+    if xlim is not None:
+        ax.set_xlim(*xlim)
+    if ylim is not None:
+        ax.set_ylim(*ylim)
+    if zlim is not None:
+        ax.set_zlim(*zlim)
+    if xlim is not None and ylim is not None and zlim is not None and hasattr(ax, "set_box_aspect"):
+        ax.set_box_aspect(_readable_3d_box_aspect(xlim, ylim, zlim))
+    ax.view_init(elev=24, azim=-58)
+    ax.grid(True, alpha=0.3)
+    _set_trajectory_legend(
+        ax,
+        controller_labels=list(positions_by_label),
+        line_styles=line_styles,
+        agent_colors_by_index=agent_colors_by_index,
+    )
+    fig.tight_layout()
+    fig.savefig(output)
+    plt.close(fig)
+    return StaticPlotResult(path=str(output), kind="trajectory_3d", xlim=xlim, ylim=ylim)
+
+
+def build_review_record_args(
+    *,
+    output_path: str | Path,
+    rollout_index: int,
+    playback_speed: float = 1.0,
+    camera: str = "orbit",
+    show_traces: bool = True,
+    dof_per_entity: int = 2,
+    qpos_dim_per_entity: int | None = None,
+    qvel_dim_per_entity: int | None = None,
+    record_width: int = 1920,
+    record_height: int = 1080,
+    record_fps_value: float | None = None,
+    record_distance: float | None = 4.0,
+    trace_width: float = 0.004,
+    trace_z: float = 0.012,
+    quiet: bool = True,
+) -> argparse.Namespace:
+    if int(rollout_index) < 0:
+        raise ValueError("rollout_index must be non-negative.")
+    if float(playback_speed) <= 0.0:
+        raise ValueError("playback_speed must be > 0.")
+    if int(record_width) <= 0 or int(record_height) <= 0:
+        raise ValueError("record_width and record_height must be positive.")
+    if record_fps_value is not None and float(record_fps_value) <= 0.0:
+        raise ValueError("record_fps must be positive when provided.")
+    if record_distance is not None and float(record_distance) <= 0.0:
+        raise ValueError("record_distance must be positive when provided.")
+    if float(trace_width) <= 0.0:
+        raise ValueError("trace_width must be positive.")
+    if float(trace_z) < 0.0:
+        raise ValueError("trace_z must be non-negative.")
+    if camera not in {"orbit", "angled", "side", "top_down", "fixed"}:
+        raise ValueError(f"Unsupported review video camera {camera!r}.")
+
+    return argparse.Namespace(
+        record_dir=None,
+        record_path=str(output_path),
+        record_split_rollouts=True,
+        record_fps=record_fps_value,
+        record_width=int(record_width),
+        record_height=int(record_height),
+        record_camera=str(camera),
+        record_camera_name="angled",
+        record_orbit_start=35.0,
+        record_orbit_degrees=180.0,
+        record_elevation=-28.0,
+        record_elevation_wobble=8.0,
+        record_distance=None if record_distance is None else float(record_distance),
+        record_maxgeom=20000,
+        record_no_titles=False,
+        record_title_height=58,
+        rollout_idx=int(rollout_index),
+        selection="single",
+        loop=False,
+        num_rollouts=1,
+        seed=0,
+        playback_speed=float(playback_speed),
+        pause_between_rollouts=0.0,
+        quiet=bool(quiet),
+        show_traces=bool(show_traces),
+        trace_width=float(trace_width),
+        trace_stride=2,
+        trace_alpha=0.72,
+        trace_z=float(trace_z),
+        print_trace_colors=False,
+        dof_per_entity=int(dof_per_entity),
+        qpos_dim_per_entity=None if qpos_dim_per_entity is None else int(qpos_dim_per_entity),
+        qvel_dim_per_entity=None if qvel_dim_per_entity is None else int(qvel_dim_per_entity),
+    )
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Replay saved evaluate.py trajectories in MuJoCo.",
@@ -1513,6 +1999,17 @@ def validate_recording_args(args: argparse.Namespace) -> None:
         raise ValueError("--playback_speed must be > 0.")
     if args.pause_between_rollouts < 0.0:
         raise ValueError("--pause_between_rollouts must be >= 0.")
+    if getattr(args, "record_distance", None) is not None and float(args.record_distance) <= 0.0:
+        raise ValueError("--record_distance must be positive when provided.")
+    if bool(getattr(args, "show_traces", False)):
+        if float(args.trace_width) <= 0.0:
+            raise ValueError("--trace_width must be positive.")
+        if int(args.trace_stride) <= 0:
+            raise ValueError("--trace_stride must be positive.")
+        if float(args.trace_alpha) < 0.0 or float(args.trace_alpha) > 1.0:
+            raise ValueError("--trace_alpha must be between 0 and 1.")
+        if float(args.trace_z) < 0.0:
+            raise ValueError("--trace_z must be non-negative.")
 
 
 def write_recorded_clip(
