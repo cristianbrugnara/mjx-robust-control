@@ -229,7 +229,6 @@ jax_models.py (REN)  ──►  jax_rollout.py  ◄──  jax_loss_functions.py
 ## Currently Supported Systems
 
 * `corridor`: two 2D point-mass agents navigating obstacle bars. 3D version of Corridor task from [1].
-* `intersection3`: three cars crossing an intersection.
 * `drones3_3d`: three 6-DOF quadrotors tracking 3D goals.
 * `crazyflies3_3d`: similar settings to `drones3_3d`, but using Bitcraze Crazyflie 2 quadrotors from MuJoCo Menagerie [5] in the same 3D task.
 

@@ -210,117 +210,6 @@ def _state_error(
     return err
 
 
-def _per_entity_values(x: jax.Array, config: RolloutConfig) -> jax.Array:
-    return jnp.reshape(
-        x,
-        (config.loss_context.n_agents, config.loss_context.entity_state_dim),
-    )
-
-
-def _shape_outside_distance(pos: jax.Array, shape: dict[str, Any]) -> jax.Array:
-    """Distance outside one 2D road-network primitive."""
-    shape_type = str(shape.get("type", "rect"))
-    center = jnp.asarray(shape.get("center", (0.0, 0.0)), dtype=pos.dtype)
-    if shape_type == "rect":
-        half_extents = jnp.asarray(shape["half_extents"], dtype=pos.dtype)
-        outside = jax.nn.relu(jnp.abs(pos - center) - half_extents)
-        return jnp.linalg.norm(outside, axis=-1)
-    if shape_type == "circle":
-        radius = jnp.asarray(float(shape["radius"]), dtype=pos.dtype)
-        return jax.nn.relu(jnp.linalg.norm(pos - center, axis=-1) - radius)
-    raise ValueError(f"Unknown road_network shape type={shape_type!r}.")
-
-
-def _road_network_cost(x: jax.Array, config: RolloutConfig, params: dict[str, Any]) -> jax.Array:
-    """Penalty for leaving a configurable union of drivable 2D shapes."""
-    shapes = tuple(dict(shape) for shape in params.get("shapes", ()))
-    if not shapes:
-        return jnp.zeros((), dtype=x.dtype)
-
-    x_by_entity = _per_entity_values(x, config)
-    pos_idx = jnp.asarray(config.loss_context.position_indices, dtype=jnp.int32)
-    pos = jnp.take(x_by_entity, pos_idx, axis=-1)
-    yaw_index = params.get("yaw_index")
-    footprint = params.get("footprint_points")
-    if yaw_index is not None and footprint is not None:
-        yaw = x_by_entity[:, int(yaw_index)]
-        offsets = jnp.asarray(footprint, dtype=x.dtype)
-        c = jnp.cos(yaw)
-        s = jnp.sin(yaw)
-        ox = offsets[:, 0]
-        oy = offsets[:, 1]
-        world_offsets = jnp.stack(
-            [
-                c[:, None] * ox[None, :] - s[:, None] * oy[None, :],
-                s[:, None] * ox[None, :] + c[:, None] * oy[None, :],
-            ],
-            axis=-1,
-        )
-        pos = pos[:, None, :] + world_offsets
-        pos = jnp.reshape(pos, (-1, 2))
-    distances = jnp.stack([_shape_outside_distance(pos, shape) for shape in shapes], axis=-1)
-    outside = jnp.min(distances, axis=-1)
-    margin = jnp.asarray(float(params.get("margin", 0.0)), dtype=x.dtype)
-    return jnp.sum(jax.nn.relu(outside - margin) ** 2)
-
-
-def _heading_to_goal_cost(x: jax.Array, config: RolloutConfig, params: dict[str, Any]) -> jax.Array:
-    """Encourage planar bodies to face their configured position targets."""
-    x_by_entity = _per_entity_values(x, config)
-    target_by_entity = _per_entity_values(
-        jnp.asarray(config.loss_context.xbar, dtype=x.dtype),
-        config,
-    )
-    pos_idx = jnp.asarray(config.loss_context.position_indices, dtype=jnp.int32)
-    pos = jnp.take(x_by_entity, pos_idx, axis=-1)
-    goal = jnp.take(target_by_entity, pos_idx, axis=-1)
-
-    yaw_index = int(params.get("yaw_index", 2))
-    yaw = x_by_entity[:, yaw_index]
-    delta = goal - pos
-    distance = jnp.linalg.norm(delta, axis=-1)
-    desired = jnp.arctan2(delta[:, 1], delta[:, 0])
-    heading_error = _wrap_angle_error(yaw - desired)
-    active = (distance > float(params.get("distance_threshold", 0.4))).astype(x.dtype)
-    return jnp.sum(active * (1.0 - jnp.cos(heading_error)))
-
-
-def _planar_heading_velocity_cost(x: jax.Array, config: RolloutConfig, params: dict[str, Any]) -> jax.Array:
-    """Soft car-like regularizer for free planar x/y/yaw bodies."""
-    x_by_entity = _per_entity_values(x, config)
-    yaw_index = int(params.get("yaw_index", 2))
-    velocity_indices = tuple(int(i) for i in params.get("velocity_indices", (3, 4)))
-    yaw = x_by_entity[:, yaw_index]
-    vel = jnp.take(x_by_entity, jnp.asarray(velocity_indices, dtype=jnp.int32), axis=-1)
-
-    forward_speed = jnp.cos(yaw) * vel[:, 0] + jnp.sin(yaw) * vel[:, 1]
-    lateral_speed = -jnp.sin(yaw) * vel[:, 0] + jnp.cos(yaw) * vel[:, 1]
-
-    lateral_weight = jnp.asarray(float(params.get("lateral_weight", 1.0)), dtype=x.dtype)
-    reverse_weight = jnp.asarray(float(params.get("reverse_weight", 0.0)), dtype=x.dtype)
-    min_forward_speed = jnp.asarray(float(params.get("min_forward_speed", 0.0)), dtype=x.dtype)
-    total = lateral_weight * jnp.sum(lateral_speed**2)
-
-    active = jnp.ones((x_by_entity.shape[0],), dtype=x.dtype)
-    if params.get("active_distance_threshold") is not None:
-        target_by_entity = _per_entity_values(
-            jnp.asarray(config.loss_context.xbar, dtype=x.dtype),
-            config,
-        )
-        pos_idx = jnp.asarray(config.loss_context.position_indices, dtype=jnp.int32)
-        pos = jnp.take(x_by_entity, pos_idx, axis=-1)
-        goal = jnp.take(target_by_entity, pos_idx, axis=-1)
-        distance = jnp.linalg.norm(goal - pos, axis=-1)
-        active = (distance > float(params["active_distance_threshold"])).astype(x.dtype)
-    total = total + reverse_weight * jnp.sum(active * jax.nn.relu(min_forward_speed - forward_speed) ** 2)
-
-    if params.get("omega_index") is not None:
-        omega = x_by_entity[:, int(params["omega_index"])]
-        spin_weight = jnp.asarray(float(params.get("spin_weight", 0.0)), dtype=x.dtype)
-        total = total + spin_weight * jnp.sum(omega**2)
-    return total
-
-
 def _cost_term_value(
     spec: Any,
     t: jax.Array,
@@ -391,15 +280,6 @@ def _cost_term_value(
 
     if term_type == "box_bounds":
         return f_loss_side(x, sys=config.loss_context)
-
-    if term_type == "road_network":
-        return _road_network_cost(x, config, params)
-
-    if term_type == "heading_to_goal":
-        return _heading_to_goal_cost(x, config, params)
-
-    if term_type == "planar_heading_velocity":
-        return _planar_heading_velocity_cost(x, config, params)
 
     raise ValueError(f"Unknown cost term type={term_type!r}.")
 
@@ -658,43 +538,6 @@ def _quat_to_yaw(q: jax.Array) -> jax.Array:
     )
 
 
-def _bicycle_steering_to_actuators(x: jax.Array, u_policy: jax.Array, config: RolloutConfig) -> jax.Array:
-    """Map per-car policy controls to MJCF actuator controls."""
-    sys = config.loss_context
-    params = _control_interface_params(config)
-    x_by_entity = jnp.reshape(x, (sys.n_agents, sys.entity_state_dim))
-    u_by_entity = jnp.reshape(u_policy, (sys.n_agents, sys.controls_per_entity))
-
-    yaw_index = int(params.get("yaw_index", 2))
-    vx_index = int(params.get("vx_index", 3))
-    vy_index = int(params.get("vy_index", 4))
-    omega_index = int(params.get("omega_index", 5))
-    wheelbase = jnp.asarray(float(params.get("wheelbase", 0.8)), dtype=x.dtype)
-    kp = jnp.asarray(float(params.get("yaw_rate_kp", 1.8)), dtype=x.dtype)
-    damping = jnp.asarray(float(params.get("yaw_rate_damping", 0.25)), dtype=x.dtype)
-    torque_limit = jnp.asarray(float(params.get("yaw_torque_limit", 3.2)), dtype=x.dtype)
-    lateral_damping = jnp.asarray(float(params.get("lateral_damping", 8.0)), dtype=x.dtype)
-    lateral_force_limit = jnp.asarray(float(params.get("lateral_force_limit", 8.0)), dtype=x.dtype)
-    actuators_per_entity = int(params.get("actuators_per_entity", 3))
-
-    drive = u_by_entity[:, 0]
-    steering = u_by_entity[:, 1]
-    yaw = x_by_entity[:, yaw_index]
-    vx = x_by_entity[:, vx_index]
-    vy = x_by_entity[:, vy_index]
-    omega = x_by_entity[:, omega_index]
-
-    forward_speed = jnp.cos(yaw) * vx + jnp.sin(yaw) * vy
-    lateral_speed = -jnp.sin(yaw) * vx + jnp.cos(yaw) * vy
-    desired_yaw_rate = forward_speed / jnp.maximum(wheelbase, 1.0e-6) * jnp.tan(steering)
-    yaw_torque = kp * (desired_yaw_rate - omega) - damping * omega
-    yaw_torque = jnp.clip(yaw_torque, -torque_limit, torque_limit)
-    if actuators_per_entity == 2:
-        return jnp.reshape(jnp.stack([drive, yaw_torque], axis=-1), (-1,))
-    lateral_force = jnp.clip(-lateral_damping * lateral_speed, -lateral_force_limit, lateral_force_limit)
-    return jnp.reshape(jnp.stack([drive, yaw_torque, lateral_force], axis=-1), (-1,))
-
-
 def _quadrotor_policy_to_rotors(x: jax.Array, u_policy: jax.Array, config: RolloutConfig) -> jax.Array:
     """Map quadrotor attitude commands to rotor thrusts."""
     sys = config.loss_context
@@ -787,8 +630,6 @@ def policy_to_actuator_control(x: jax.Array, u_policy: jax.Array, config: Rollou
     interface = config.control_interface_type
     if interface == "direct_actuator":
         u_actuator = u_policy
-    elif interface == "bicycle_steering":
-        u_actuator = _bicycle_steering_to_actuators(x, u_policy, config)
     elif interface == "quadrotor_attitude_mixer":
         u_actuator = _quadrotor_policy_to_rotors(x, u_policy, config)
     elif interface == "quadrotor_wrench_mixer":

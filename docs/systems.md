@@ -69,14 +69,10 @@ stay within a comfortable stability margin. Example:
 - `pairwise_distance_barrier`
 - `ellipsoid_obstacle`
 - `box_bounds`
-- `road_network`
-- `heading_to_goal`
-- `planar_heading_velocity`
 
 ### Control Interfaces
 
 - `direct_actuator`: policy controls map directly to MuJoCo actuators.
-- `bicycle_steering`: `[drive_force, steering_angle]` policy controls map to car drive/yaw/lateral actuators.
 - `quadrotor_attitude_mixer`: `[collective_thrust, roll_cmd, pitch_cmd, yaw_rate_cmd]` maps to four rotor thrust actuators.
 - `quadrotor_wrench_mixer`: `[collective_thrust, roll_cmd, pitch_cmd, yaw_rate_cmd]` maps to body thrust and body moments.
 
@@ -89,14 +85,6 @@ stay within a comfortable stability margin. Example:
 - State: two point-mass agents, per-agent `[qx, qy, vx, vy]`
 - Interface: `direct_actuator`
 - Main costs: `state_l2`, `control_l2`, `pairwise_distance_barrier`, `ellipsoid_obstacle`, `box_bounds`
-
-### `intersection3`
-
-- XML: `assets/mjcf/intersection3.xml`
-- JSON: `assets/config/intersection3.json`
-- State: three planar cars, per-car `[x, y, yaw, vx, vy, omega]`
-- Interface: `bicycle_steering`
-- Main costs: `state_l2`, `control_l2`, `pairwise_distance_barrier`, `ellipsoid_obstacle`, `box_bounds`, `road_network`, `heading_to_goal`, `planar_heading_velocity`
 
 ### `drones3_3d`
 

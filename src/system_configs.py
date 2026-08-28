@@ -221,9 +221,6 @@ _VALID_COST_TERMS = {
     "ellipsoid_obstacle",
     "box_obstacle",
     "box_bounds",
-    "road_network",
-    "heading_to_goal",
-    "planar_heading_velocity",
 }
 
 
@@ -546,9 +543,9 @@ class SystemSpec:
                 f"System '{self.name}' expects control_dim={self.control_dim}, but MJCF has "
                 f"nu={mj_model.nu}. Keep actuator order one block per agent, or update the config."
             )
-        if self.control_interface.type in ("bicycle_steering", "quadrotor_attitude_mixer", "quadrotor_wrench_mixer"):
+        if self.control_interface.type in ("quadrotor_attitude_mixer", "quadrotor_wrench_mixer"):
             params = dict(self.control_interface.params)
-            default_actuators_per_entity = 3 if self.control_interface.type == "bicycle_steering" else self.controls_per_entity
+            default_actuators_per_entity = self.controls_per_entity
             actuators_per_entity = int(params.get("actuators_per_entity", default_actuators_per_entity))
             expected_nu = self.n_agents * actuators_per_entity
             if int(mj_model.nu) != expected_nu:
@@ -558,7 +555,6 @@ class SystemSpec:
                 )
         if self.control_interface.type not in (
             "direct_actuator",
-            "bicycle_steering",
             "quadrotor_attitude_mixer",
             "quadrotor_wrench_mixer",
         ):

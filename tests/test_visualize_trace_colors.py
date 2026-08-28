@@ -37,20 +37,6 @@ class TraceColorInferenceTests(unittest.TestCase):
         np.testing.assert_allclose(colors[1][:3], [0.90, 0.40, 0.20], atol=1e-6)
         np.testing.assert_allclose(colors[2][:3], [0.22, 0.62, 0.40], atol=1e-6)
 
-    def test_actual_car_trace_colors_ignore_taillights(self) -> None:
-        model = mujoco.MjModel.from_xml_path(str(ROOT / "assets/mjcf/intersection3.xml"))
-
-        colors = infer_agent_colors_from_model(
-            model,
-            n_agents=3,
-            qpos_dim_per_entity=3,
-            alpha=0.72,
-        )
-
-        np.testing.assert_allclose(colors[0][:3], [0.12, 0.36, 0.90], atol=1e-6)
-        np.testing.assert_allclose(colors[1][:3], [0.90, 0.25, 0.18], atol=1e-6)
-        np.testing.assert_allclose(colors[2][:3], [0.10, 0.62, 0.34], atol=1e-6)
-
     def test_identical_crazyflies_use_task_marker_colors(self) -> None:
         model = mujoco.MjModel.from_xml_path(str(ROOT / "assets/mjcf/crazyflies3_3d.xml"))
 

@@ -25,7 +25,6 @@ PUBLIC_SYSTEMS = (
     ("crazyflies3_3d", "assets/mjcf/crazyflies3_3d.xml", "assets/config/crazyflies3_3d.json"),
     ("crazyflies4_3d_hard", "assets/mjcf/crazyflies4_3d_hard.xml", "assets/config/crazyflies4_3d_hard.json"),
     ("crazyflies4_3d_medium", "assets/mjcf/crazyflies4_3d_medium.xml", "assets/config/crazyflies4_3d_medium.json"),
-    ("intersection3", "assets/mjcf/intersection3.xml", "assets/config/intersection3.json"),
 )
 
 
