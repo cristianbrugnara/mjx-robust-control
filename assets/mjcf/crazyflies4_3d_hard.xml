@@ -1,0 +1,196 @@
+<mujoco model="crazyflies3_hard_3d">
+  <compiler angle="radian" autolimits="true" inertiafromgeom="false" meshdir="../../external/mujoco_menagerie/bitcraze_crazyflie_2/assets"/>
+
+  <option timestep="0.025" gravity="0 0 -9.81" integrator="Euler" density="1.225" viscosity="1.8e-5"/>
+  <statistic center="0 0 0.42" extent="1.55"/>
+
+  <default>
+    <geom contype="0" conaffinity="0"/>
+    <site type="sphere" size="0.035"/>
+    <default class="cf2">
+      <default class="visual">
+        <geom group="2" type="mesh" contype="0" conaffinity="0"/>
+      </default>
+      <default class="collision">
+        <geom group="3" type="mesh"/>
+      </default>
+      <site group="5"/>
+      <motor ctrllimited="true"/>
+    </default>
+  </default>
+
+  <asset>
+    <texture name="sky" type="skybox" builtin="flat" rgb1="1 1 1" width="64" height="64"/>
+    <texture name="floor_tex" type="2d" builtin="checker" width="512" height="512"
+      rgb1="0.965 0.970 0.978" rgb2="0.890 0.910 0.930"/>
+    <material name="floor_mat" texture="floor_tex" texrepeat="9 9" texuniform="true" reflectance="0.06"/>
+    <material name="wall_mat" rgba="0.72 0.77 0.84 0.38" specular="0.12" shininess="0.25"/>
+    <material name="tunnel_wall_mat" rgba="0.16 0.18 0.20 0.28" specular="0.10" shininess="0.22"/>
+    <material name="air_hazard_mat" rgba="0.52 0.10 0.74 0.34" specular="0.18" shininess="0.35"/>
+    <material name="air_hazard_core_mat" rgba="0.54 0.08 0.74 0.72" specular="0.12" shininess="0.25"/>
+    <material name="hazard_ring_mat" rgba="1.00 0.76 0.18 0.82" specular="0.16" shininess="0.24"/>
+    <material name="goal1_mat" rgba="0.10 0.62 0.96 0.95" specular="0.20" shininess="0.40"/>
+    <material name="goal2_mat" rgba="0.96 0.54 0.20 0.95" specular="0.20" shininess="0.40"/>
+    <material name="goal3_mat" rgba="0.18 0.78 0.46 0.95" specular="0.20" shininess="0.40"/>
+    <material name="goal4_mat" rgba="0.72 0.34 0.96 0.95" specular="0.20" shininess="0.40"/>
+    <material name="goal_zone_mat" rgba="0.20 0.84 0.62 0.18"/>
+    <material name="start1_mat" rgba="0.34 0.52 0.96 0.28"/>
+    <material name="start2_mat" rgba="0.98 0.56 0.30 0.28"/>
+    <material name="start3_mat" rgba="0.34 0.84 0.54 0.28"/>
+    <material name="start4_mat" rgba="0.72 0.38 0.96 0.28"/>
+
+    <material name="polished_plastic" rgba="0.631 0.659 0.678 1"/>
+    <material name="polished_gold" rgba="0.969 0.878 0.6 1"/>
+    <material name="medium_gloss_plastic" rgba="0.109 0.184 0.0 1"/>
+    <material name="propeller_plastic" rgba="0.792 0.820 0.933 1"/>
+    <material name="white" rgba="1 1 1 1"/>
+    <material name="body_frame_plastic" rgba="0.102 0.102 0.102 1"/>
+    <material name="burnished_chrome" rgba="0.898 0.898 0.898 1"/>
+
+    <mesh file="cf2_0.obj"/>
+    <mesh file="cf2_1.obj"/>
+    <mesh file="cf2_2.obj"/>
+    <mesh file="cf2_3.obj"/>
+    <mesh file="cf2_4.obj"/>
+    <mesh file="cf2_5.obj"/>
+    <mesh file="cf2_6.obj"/>
+    <mesh file="cf2_collision_0.obj"/>
+    <mesh file="cf2_collision_1.obj"/>
+    <mesh file="cf2_collision_2.obj"/>
+    <mesh file="cf2_collision_3.obj"/>
+    <mesh file="cf2_collision_4.obj"/>
+    <mesh file="cf2_collision_5.obj"/>
+    <mesh file="cf2_collision_6.obj"/>
+    <mesh file="cf2_collision_7.obj"/>
+    <mesh file="cf2_collision_8.obj"/>
+    <mesh file="cf2_collision_9.obj"/>
+    <mesh file="cf2_collision_10.obj"/>
+    <mesh file="cf2_collision_11.obj"/>
+    <mesh file="cf2_collision_12.obj"/>
+    <mesh file="cf2_collision_13.obj"/>
+    <mesh file="cf2_collision_14.obj"/>
+    <mesh file="cf2_collision_15.obj"/>
+    <mesh file="cf2_collision_16.obj"/>
+    <mesh file="cf2_collision_17.obj"/>
+    <mesh file="cf2_collision_18.obj"/>
+    <mesh file="cf2_collision_19.obj"/>
+    <mesh file="cf2_collision_20.obj"/>
+    <mesh file="cf2_collision_21.obj"/>
+    <mesh file="cf2_collision_22.obj"/>
+    <mesh file="cf2_collision_23.obj"/>
+    <mesh file="cf2_collision_24.obj"/>
+    <mesh file="cf2_collision_25.obj"/>
+    <mesh file="cf2_collision_26.obj"/>
+    <mesh file="cf2_collision_27.obj"/>
+    <mesh file="cf2_collision_28.obj"/>
+    <mesh file="cf2_collision_29.obj"/>
+    <mesh file="cf2_collision_30.obj"/>
+    <mesh file="cf2_collision_31.obj"/>
+  </asset>
+
+  <worldbody>
+    <light name="key" pos="-0.75 -1.10 1.35" diffuse="0.95 0.95 0.95" specular="0.22 0.22 0.22"/>
+    <light name="fill" pos="0.85 0.90 0.95" diffuse="0.48 0.50 0.52" specular="0.06 0.06 0.06"/>
+
+    <camera name="angled" mode="fixed" pos="1.15 -1.70 0.98" xyaxes="0.82 0.57 0 -0.30 0.43 0.85"/>
+    <camera name="side" mode="fixed" pos="0 -1.85 0.58" xyaxes="1 0 0 0 0.30 0.95"/>
+    <camera name="top_down" mode="fixed" pos="0 -0.01 2.10" xyaxes="1 0 0 0 1 0"/>
+
+    <geom name="floor" type="plane" pos="0 0 0" size="1.55 1.65 0.015" material="floor_mat"/>
+    <geom name="arena_back" type="box" pos="0 1.095 0.41" size="0.99 0.006 0.41" material="wall_mat"/>
+    <geom name="arena_front" type="box" pos="0 -1.095 0.41" size="0.99 0.006 0.41" material="wall_mat"/>
+    <geom name="arena_left" type="box" pos="-0.995 0 0.41" size="0.006 1.08 0.41" material="wall_mat"/>
+    <geom name="arena_right" type="box" pos="0.995 0 0.41" size="0.006 1.08 0.41" material="wall_mat"/>
+
+    <geom name="tunnel_wall_left" type="box" pos="-0.776924 0 0.43" size="0.173076 0.175 0.35" material="tunnel_wall_mat"/>
+    <geom name="tunnel_wall_middle" type="box" pos="0 0 0.43" size="0.236152 0.175 0.35" material="tunnel_wall_mat"/>
+    <geom name="tunnel_wall_right" type="box" pos="0.776924 0 0.43" size="0.173076 0.175 0.35" material="tunnel_wall_mat"/>
+    <geom name="tunnel_wall_lower_left_bottom" type="box" pos="-0.42 0 0.123431" size="0.183848 0.175 0.043431" material="tunnel_wall_mat"/>
+    <geom name="tunnel_wall_lower_left_top" type="box" pos="-0.42 0 0.586569" size="0.183848 0.175 0.193431" material="tunnel_wall_mat"/>
+    <geom name="tunnel_wall_upper_right_bottom" type="box" pos="0.42 0 0.258431" size="0.183848 0.175 0.178431" material="tunnel_wall_mat"/>
+    <geom name="tunnel_wall_upper_right_top" type="box" pos="0.42 0 0.721569" size="0.183848 0.175 0.058431" material="tunnel_wall_mat"/>
+    <geom name="goal_turn_wall_d2" type="box" pos="0.24 0.68 0.28" size="0.10 0.035 0.07" material="tunnel_wall_mat"/>
+    <geom name="goal_turn_wall_d3" type="box" pos="-0.24 0.68 0.55" size="0.10 0.035 0.07" material="tunnel_wall_mat"/>
+
+    <geom name="air_hazard_low_outer_approach" type="ellipsoid" pos="-0.62 -0.47 0.28" size="0.095 0.070 0.055" material="air_hazard_mat"/>
+    <geom name="air_hazard_low_core_approach" type="ellipsoid" pos="-0.62 -0.47 0.28" size="0.052 0.039 0.030" material="air_hazard_core_mat"/>
+    <geom name="air_hazard_low_ring_approach" type="cylinder" pos="-0.62 -0.47 0.28" size="0.090 0.0027" euler="1.5707963268 0 0" material="hazard_ring_mat"/>
+    <geom name="air_hazard_low_outer_gate" type="ellipsoid" pos="-0.23 -0.44 0.31" size="0.090 0.070 0.055" material="air_hazard_mat"/>
+    <geom name="air_hazard_low_core_gate" type="ellipsoid" pos="-0.23 -0.44 0.31" size="0.050 0.039 0.030" material="air_hazard_core_mat"/>
+    <geom name="air_hazard_low_ring_gate" type="cylinder" pos="-0.23 -0.44 0.31" size="0.085 0.0027" euler="1.5707963268 0 0" material="hazard_ring_mat"/>
+    <geom name="air_hazard_high_outer_gate" type="ellipsoid" pos="0.23 -0.44 0.52" size="0.090 0.070 0.055" material="air_hazard_mat"/>
+    <geom name="air_hazard_high_core_gate" type="ellipsoid" pos="0.23 -0.44 0.52" size="0.050 0.039 0.030" material="air_hazard_core_mat"/>
+    <geom name="air_hazard_high_ring_gate" type="cylinder" pos="0.23 -0.44 0.52" size="0.085 0.0027" euler="1.5707963268 0 0" material="hazard_ring_mat"/>
+    <geom name="air_hazard_high_outer_approach" type="ellipsoid" pos="0.62 -0.47 0.55" size="0.095 0.070 0.055" material="air_hazard_mat"/>
+    <geom name="air_hazard_high_core_approach" type="ellipsoid" pos="0.62 -0.47 0.55" size="0.052 0.039 0.030" material="air_hazard_core_mat"/>
+    <geom name="air_hazard_high_ring_approach" type="cylinder" pos="0.62 -0.47 0.55" size="0.090 0.0027" euler="1.5707963268 0 0" material="hazard_ring_mat"/>
+    <geom name="air_hazard_low_outer_exit" type="ellipsoid" pos="-0.58 0.42 0.31" size="0.105 0.080 0.060" material="air_hazard_mat"/>
+    <geom name="air_hazard_low_core_exit" type="ellipsoid" pos="-0.58 0.42 0.31" size="0.058 0.044 0.033" material="air_hazard_core_mat"/>
+    <geom name="air_hazard_low_ring_exit" type="cylinder" pos="-0.58 0.42 0.31" size="0.100 0.0027" euler="1.5707963268 0 0" material="hazard_ring_mat"/>
+    <geom name="air_hazard_high_outer_exit" type="ellipsoid" pos="0.58 0.42 0.52" size="0.105 0.080 0.060" material="air_hazard_mat"/>
+    <geom name="air_hazard_high_core_exit" type="ellipsoid" pos="0.58 0.42 0.52" size="0.058 0.044 0.033" material="air_hazard_core_mat"/>
+    <geom name="air_hazard_high_ring_exit" type="cylinder" pos="0.58 0.42 0.52" size="0.100 0.0027" euler="1.5707963268 0 0" material="hazard_ring_mat"/>
+
+    <geom name="start_d1" type="cylinder" pos="-0.72 -0.82 0.0021" size="0.051 0.0021" material="start1_mat"/>
+    <geom name="start_d2" type="cylinder" pos="-0.24 -0.86 0.0021" size="0.051 0.0021" material="start2_mat"/>
+    <geom name="start_d3" type="cylinder" pos="0.24 -0.86 0.0021" size="0.051 0.0021" material="start3_mat"/>
+    <geom name="start_d4" type="cylinder" pos="0.72 -0.82 0.0021" size="0.051 0.0021" material="start4_mat"/>
+
+    <geom name="goal_d1_zone" type="ellipsoid" pos="0.72 0.86 0.55" size="0.057 0.057 0.057" material="goal_zone_mat"/>
+    <geom name="goal_d1_core" type="sphere" pos="0.72 0.86 0.55" size="0.0195" material="goal1_mat"/>
+    <geom name="goal_d2_zone" type="ellipsoid" pos="0.24 0.90 0.28" size="0.057 0.057 0.057" material="goal_zone_mat"/>
+    <geom name="goal_d2_core" type="sphere" pos="0.24 0.90 0.28" size="0.0195" material="goal2_mat"/>
+    <geom name="goal_d3_zone" type="ellipsoid" pos="-0.24 0.90 0.55" size="0.057 0.057 0.057" material="goal_zone_mat"/>
+    <geom name="goal_d3_core" type="sphere" pos="-0.24 0.90 0.55" size="0.0195" material="goal3_mat"/>
+    <geom name="goal_d4_zone" type="ellipsoid" pos="-0.72 0.86 0.28" size="0.057 0.057 0.057" material="goal_zone_mat"/>
+    <geom name="goal_d4_core" type="sphere" pos="-0.72 0.86 0.28" size="0.0195" material="goal4_mat"/>
+
+    <body name="cf1" pos="-0.72 -0.82 0.14" childclass="cf2">
+      <freejoint name="cf1_free"/>
+      <inertial pos="0 0 0" mass="0.027" diaginertia="2.3951e-5 2.3951e-5 3.2347e-5"/>
+      <geom mesh="cf2_0" material="propeller_plastic" class="visual"/><geom mesh="cf2_1" material="medium_gloss_plastic" class="visual"/><geom mesh="cf2_2" material="polished_gold" class="visual"/><geom mesh="cf2_3" material="polished_plastic" class="visual"/><geom mesh="cf2_4" material="burnished_chrome" class="visual"/><geom mesh="cf2_5" material="body_frame_plastic" class="visual"/><geom mesh="cf2_6" material="white" class="visual"/>
+      <geom mesh="cf2_collision_0" class="collision"/><geom mesh="cf2_collision_1" class="collision"/><geom mesh="cf2_collision_2" class="collision"/><geom mesh="cf2_collision_3" class="collision"/><geom mesh="cf2_collision_4" class="collision"/><geom mesh="cf2_collision_5" class="collision"/><geom mesh="cf2_collision_6" class="collision"/><geom mesh="cf2_collision_7" class="collision"/><geom mesh="cf2_collision_8" class="collision"/><geom mesh="cf2_collision_9" class="collision"/><geom mesh="cf2_collision_10" class="collision"/><geom mesh="cf2_collision_11" class="collision"/><geom mesh="cf2_collision_12" class="collision"/><geom mesh="cf2_collision_13" class="collision"/><geom mesh="cf2_collision_14" class="collision"/><geom mesh="cf2_collision_15" class="collision"/><geom mesh="cf2_collision_16" class="collision"/><geom mesh="cf2_collision_17" class="collision"/><geom mesh="cf2_collision_18" class="collision"/><geom mesh="cf2_collision_19" class="collision"/><geom mesh="cf2_collision_20" class="collision"/><geom mesh="cf2_collision_21" class="collision"/><geom mesh="cf2_collision_22" class="collision"/><geom mesh="cf2_collision_23" class="collision"/><geom mesh="cf2_collision_24" class="collision"/><geom mesh="cf2_collision_25" class="collision"/><geom mesh="cf2_collision_26" class="collision"/><geom mesh="cf2_collision_27" class="collision"/><geom mesh="cf2_collision_28" class="collision"/><geom mesh="cf2_collision_29" class="collision"/><geom mesh="cf2_collision_30" class="collision"/><geom mesh="cf2_collision_31" class="collision"/>
+      <site name="cf1_imu"/><site name="cf1_fl_thruster" pos="-0.0325 0.0325 0.005"/><site name="cf1_fr_thruster" pos="0.0325 0.0325 0.005"/><site name="cf1_rr_thruster" pos="0.0325 -0.0325 0.005"/><site name="cf1_rl_thruster" pos="-0.0325 -0.0325 0.005"/>
+    </body>
+    <body name="cf2" pos="-0.24 -0.86 0.18" childclass="cf2">
+      <freejoint name="cf2_free"/>
+      <inertial pos="0 0 0" mass="0.027" diaginertia="2.3951e-5 2.3951e-5 3.2347e-5"/>
+      <geom mesh="cf2_0" material="propeller_plastic" class="visual"/><geom mesh="cf2_1" material="medium_gloss_plastic" class="visual"/><geom mesh="cf2_2" material="polished_gold" class="visual"/><geom mesh="cf2_3" material="polished_plastic" class="visual"/><geom mesh="cf2_4" material="burnished_chrome" class="visual"/><geom mesh="cf2_5" material="body_frame_plastic" class="visual"/><geom mesh="cf2_6" material="white" class="visual"/>
+      <geom mesh="cf2_collision_0" class="collision"/><geom mesh="cf2_collision_1" class="collision"/><geom mesh="cf2_collision_2" class="collision"/><geom mesh="cf2_collision_3" class="collision"/><geom mesh="cf2_collision_4" class="collision"/><geom mesh="cf2_collision_5" class="collision"/><geom mesh="cf2_collision_6" class="collision"/><geom mesh="cf2_collision_7" class="collision"/><geom mesh="cf2_collision_8" class="collision"/><geom mesh="cf2_collision_9" class="collision"/><geom mesh="cf2_collision_10" class="collision"/><geom mesh="cf2_collision_11" class="collision"/><geom mesh="cf2_collision_12" class="collision"/><geom mesh="cf2_collision_13" class="collision"/><geom mesh="cf2_collision_14" class="collision"/><geom mesh="cf2_collision_15" class="collision"/><geom mesh="cf2_collision_16" class="collision"/><geom mesh="cf2_collision_17" class="collision"/><geom mesh="cf2_collision_18" class="collision"/><geom mesh="cf2_collision_19" class="collision"/><geom mesh="cf2_collision_20" class="collision"/><geom mesh="cf2_collision_21" class="collision"/><geom mesh="cf2_collision_22" class="collision"/><geom mesh="cf2_collision_23" class="collision"/><geom mesh="cf2_collision_24" class="collision"/><geom mesh="cf2_collision_25" class="collision"/><geom mesh="cf2_collision_26" class="collision"/><geom mesh="cf2_collision_27" class="collision"/><geom mesh="cf2_collision_28" class="collision"/><geom mesh="cf2_collision_29" class="collision"/><geom mesh="cf2_collision_30" class="collision"/><geom mesh="cf2_collision_31" class="collision"/>
+      <site name="cf2_imu"/><site name="cf2_fl_thruster" pos="-0.0325 0.0325 0.005"/><site name="cf2_fr_thruster" pos="0.0325 0.0325 0.005"/><site name="cf2_rr_thruster" pos="0.0325 -0.0325 0.005"/><site name="cf2_rl_thruster" pos="-0.0325 -0.0325 0.005"/>
+    </body>
+    <body name="cf3" pos="0.24 -0.86 0.16" childclass="cf2">
+      <freejoint name="cf3_free"/>
+      <inertial pos="0 0 0" mass="0.027" diaginertia="2.3951e-5 2.3951e-5 3.2347e-5"/>
+      <geom mesh="cf2_0" material="propeller_plastic" class="visual"/><geom mesh="cf2_1" material="medium_gloss_plastic" class="visual"/><geom mesh="cf2_2" material="polished_gold" class="visual"/><geom mesh="cf2_3" material="polished_plastic" class="visual"/><geom mesh="cf2_4" material="burnished_chrome" class="visual"/><geom mesh="cf2_5" material="body_frame_plastic" class="visual"/><geom mesh="cf2_6" material="white" class="visual"/>
+      <geom mesh="cf2_collision_0" class="collision"/><geom mesh="cf2_collision_1" class="collision"/><geom mesh="cf2_collision_2" class="collision"/><geom mesh="cf2_collision_3" class="collision"/><geom mesh="cf2_collision_4" class="collision"/><geom mesh="cf2_collision_5" class="collision"/><geom mesh="cf2_collision_6" class="collision"/><geom mesh="cf2_collision_7" class="collision"/><geom mesh="cf2_collision_8" class="collision"/><geom mesh="cf2_collision_9" class="collision"/><geom mesh="cf2_collision_10" class="collision"/><geom mesh="cf2_collision_11" class="collision"/><geom mesh="cf2_collision_12" class="collision"/><geom mesh="cf2_collision_13" class="collision"/><geom mesh="cf2_collision_14" class="collision"/><geom mesh="cf2_collision_15" class="collision"/><geom mesh="cf2_collision_16" class="collision"/><geom mesh="cf2_collision_17" class="collision"/><geom mesh="cf2_collision_18" class="collision"/><geom mesh="cf2_collision_19" class="collision"/><geom mesh="cf2_collision_20" class="collision"/><geom mesh="cf2_collision_21" class="collision"/><geom mesh="cf2_collision_22" class="collision"/><geom mesh="cf2_collision_23" class="collision"/><geom mesh="cf2_collision_24" class="collision"/><geom mesh="cf2_collision_25" class="collision"/><geom mesh="cf2_collision_26" class="collision"/><geom mesh="cf2_collision_27" class="collision"/><geom mesh="cf2_collision_28" class="collision"/><geom mesh="cf2_collision_29" class="collision"/><geom mesh="cf2_collision_30" class="collision"/><geom mesh="cf2_collision_31" class="collision"/>
+      <site name="cf3_imu"/><site name="cf3_fl_thruster" pos="-0.0325 0.0325 0.005"/><site name="cf3_fr_thruster" pos="0.0325 0.0325 0.005"/><site name="cf3_rr_thruster" pos="0.0325 -0.0325 0.005"/><site name="cf3_rl_thruster" pos="-0.0325 -0.0325 0.005"/>
+    </body>
+    <body name="cf4" pos="0.72 -0.82 0.20" childclass="cf2">
+      <freejoint name="cf4_free"/>
+      <inertial pos="0 0 0" mass="0.027" diaginertia="2.3951e-5 2.3951e-5 3.2347e-5"/>
+      <geom mesh="cf2_0" material="propeller_plastic" class="visual"/><geom mesh="cf2_1" material="medium_gloss_plastic" class="visual"/><geom mesh="cf2_2" material="polished_gold" class="visual"/><geom mesh="cf2_3" material="polished_plastic" class="visual"/><geom mesh="cf2_4" material="burnished_chrome" class="visual"/><geom mesh="cf2_5" material="body_frame_plastic" class="visual"/><geom mesh="cf2_6" material="white" class="visual"/>
+      <geom mesh="cf2_collision_0" class="collision"/><geom mesh="cf2_collision_1" class="collision"/><geom mesh="cf2_collision_2" class="collision"/><geom mesh="cf2_collision_3" class="collision"/><geom mesh="cf2_collision_4" class="collision"/><geom mesh="cf2_collision_5" class="collision"/><geom mesh="cf2_collision_6" class="collision"/><geom mesh="cf2_collision_7" class="collision"/><geom mesh="cf2_collision_8" class="collision"/><geom mesh="cf2_collision_9" class="collision"/><geom mesh="cf2_collision_10" class="collision"/><geom mesh="cf2_collision_11" class="collision"/><geom mesh="cf2_collision_12" class="collision"/><geom mesh="cf2_collision_13" class="collision"/><geom mesh="cf2_collision_14" class="collision"/><geom mesh="cf2_collision_15" class="collision"/><geom mesh="cf2_collision_16" class="collision"/><geom mesh="cf2_collision_17" class="collision"/><geom mesh="cf2_collision_18" class="collision"/><geom mesh="cf2_collision_19" class="collision"/><geom mesh="cf2_collision_20" class="collision"/><geom mesh="cf2_collision_21" class="collision"/><geom mesh="cf2_collision_22" class="collision"/><geom mesh="cf2_collision_23" class="collision"/><geom mesh="cf2_collision_24" class="collision"/><geom mesh="cf2_collision_25" class="collision"/><geom mesh="cf2_collision_26" class="collision"/><geom mesh="cf2_collision_27" class="collision"/><geom mesh="cf2_collision_28" class="collision"/><geom mesh="cf2_collision_29" class="collision"/><geom mesh="cf2_collision_30" class="collision"/><geom mesh="cf2_collision_31" class="collision"/>
+      <site name="cf4_imu"/><site name="cf4_fl_thruster" pos="-0.0325 0.0325 0.005"/><site name="cf4_fr_thruster" pos="0.0325 0.0325 0.005"/><site name="cf4_rr_thruster" pos="0.0325 -0.0325 0.005"/><site name="cf4_rl_thruster" pos="-0.0325 -0.0325 0.005"/>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <motor class="cf2" ctrlrange="0 0.0875" gear="0 0 1 0 0 0.000057" site="cf1_fl_thruster" name="cf1_front_left"/>
+    <motor class="cf2" ctrlrange="0 0.0875" gear="0 0 1 0 0 -0.000057" site="cf1_fr_thruster" name="cf1_front_right"/>
+    <motor class="cf2" ctrlrange="0 0.0875" gear="0 0 1 0 0 0.000057" site="cf1_rr_thruster" name="cf1_rear_right"/>
+    <motor class="cf2" ctrlrange="0 0.0875" gear="0 0 1 0 0 -0.000057" site="cf1_rl_thruster" name="cf1_rear_left"/>
+    <motor class="cf2" ctrlrange="0 0.0875" gear="0 0 1 0 0 0.000057" site="cf2_fl_thruster" name="cf2_front_left"/>
+    <motor class="cf2" ctrlrange="0 0.0875" gear="0 0 1 0 0 -0.000057" site="cf2_fr_thruster" name="cf2_front_right"/>
+    <motor class="cf2" ctrlrange="0 0.0875" gear="0 0 1 0 0 0.000057" site="cf2_rr_thruster" name="cf2_rear_right"/>
+    <motor class="cf2" ctrlrange="0 0.0875" gear="0 0 1 0 0 -0.000057" site="cf2_rl_thruster" name="cf2_rear_left"/>
+    <motor class="cf2" ctrlrange="0 0.0875" gear="0 0 1 0 0 0.000057" site="cf3_fl_thruster" name="cf3_front_left"/>
+    <motor class="cf2" ctrlrange="0 0.0875" gear="0 0 1 0 0 -0.000057" site="cf3_fr_thruster" name="cf3_front_right"/>
+    <motor class="cf2" ctrlrange="0 0.0875" gear="0 0 1 0 0 0.000057" site="cf3_rr_thruster" name="cf3_rear_right"/>
+    <motor class="cf2" ctrlrange="0 0.0875" gear="0 0 1 0 0 -0.000057" site="cf3_rl_thruster" name="cf3_rear_left"/>
+    <motor class="cf2" ctrlrange="0 0.0875" gear="0 0 1 0 0 0.000057" site="cf4_fl_thruster" name="cf4_front_left"/>
+    <motor class="cf2" ctrlrange="0 0.0875" gear="0 0 1 0 0 -0.000057" site="cf4_fr_thruster" name="cf4_front_right"/>
+    <motor class="cf2" ctrlrange="0 0.0875" gear="0 0 1 0 0 0.000057" site="cf4_rr_thruster" name="cf4_rear_right"/>
+    <motor class="cf2" ctrlrange="0 0.0875" gear="0 0 1 0 0 -0.000057" site="cf4_rl_thruster" name="cf4_rear_left"/>
+  </actuator>
+</mujoco>

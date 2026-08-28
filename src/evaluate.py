@@ -35,10 +35,12 @@ from workflow_utils import (
     actuator_ctrl_bounds,
     build_data_init,
     build_rollout_config as build_shared_rollout_config,
+    calculate_box_obstacle_violations,
     calculate_collisions,
     calculate_obstacle_violations,
     controller_input_dim_from_blocks,
     final_goal_distances,
+    min_box_obstacle_margin,
     min_obstacle_margin,
     policy_ctrl_bounds,
     require_explicit_task,
@@ -520,6 +522,12 @@ def main() -> None:
     per_rollout_min_obstacle_margin = np.asarray(
         jax.jit(jax.vmap(lambda tr: min_obstacle_margin(tr, spec.system)))(trajectories)
     )
+    per_rollout_box_obstacle_violations = np.asarray(
+        jax.jit(jax.vmap(lambda tr: calculate_box_obstacle_violations(tr, spec.system)))(trajectories)
+    )
+    per_rollout_min_box_obstacle_margin = np.asarray(
+        jax.jit(jax.vmap(lambda tr: min_box_obstacle_margin(tr, spec.system)))(trajectories)
+    )
     per_rollout_goal_distances = np.asarray(
         jax.jit(jax.vmap(lambda tr: final_goal_distances(tr, spec.system, spec.xbar)))(trajectories)
     )
@@ -584,6 +592,9 @@ def main() -> None:
         "total_obstacle_violations": rollout_stat(per_rollout_obstacle_violations, "sum"),
         "mean_obstacle_violations": rollout_stat(per_rollout_obstacle_violations, "mean"),
         "min_obstacle_margin": rollout_stat(per_rollout_min_obstacle_margin, "min"),
+        "total_box_obstacle_violations": rollout_stat(per_rollout_box_obstacle_violations, "sum"),
+        "mean_box_obstacle_violations": rollout_stat(per_rollout_box_obstacle_violations, "mean"),
+        "min_box_obstacle_margin": rollout_stat(per_rollout_min_box_obstacle_margin, "min"),
         "mean_final_goal_distance": rollout_stat(per_rollout_goal_distances, "mean"),
         "max_final_goal_distance": rollout_stat(per_rollout_goal_distances, "max"),
         "per_agent_mean_final_goal_distance": rollout_axis_mean(per_rollout_goal_distances),
@@ -611,6 +622,10 @@ def main() -> None:
             summary[metric_name] = rollout_stat(per_rollout_obstacle_violations, "mean")
         elif metric_type == "min_obstacle_margin":
             summary[metric_name] = rollout_stat(per_rollout_min_obstacle_margin, "min")
+        elif metric_type == "box_obstacle_violations":
+            summary[metric_name] = rollout_stat(per_rollout_box_obstacle_violations, "mean")
+        elif metric_type == "min_box_obstacle_margin":
+            summary[metric_name] = rollout_stat(per_rollout_min_box_obstacle_margin, "min")
         elif metric_type == "final_goal_distance":
             summary[metric_name] = rollout_stat(per_rollout_goal_distances, "mean")
         else:

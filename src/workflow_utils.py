@@ -15,6 +15,7 @@ import mujoco
 import numpy as np
 
 from jax_rollout import LossContext, RolloutConfig, data_with_state
+from jax_loss_functions import box_obstacle_signed_distances
 from system_configs import ControllerInputSpec, SystemSpec, TaskSpec
 
 Array = jax.Array
@@ -82,6 +83,27 @@ def min_obstacle_margin(x: jax.Array, sys: Any) -> jax.Array:
     if ellipsoid.shape[-1] == 0:
         return jnp.asarray(jnp.inf, dtype=jnp.asarray(x).dtype)
     return jnp.min(ellipsoid - 1.0)
+
+
+def box_obstacle_margins(x: jax.Array, sys: Any) -> jax.Array:
+    """Signed box-obstacle margins along a trajectory; negative means violation."""
+    x = jnp.asarray(x)
+    leading_shape = x.shape[:-1]
+    flat = jnp.reshape(x, (-1, x.shape[-1]))
+    margins = jax.vmap(lambda x_i: box_obstacle_signed_distances(x_i, sys))(flat)
+    return jnp.reshape(margins, leading_shape + margins.shape[1:])
+
+
+def calculate_box_obstacle_violations(x: jax.Array, sys: Any) -> jax.Array:
+    margins = box_obstacle_margins(x, sys)
+    return jnp.sum((margins < 0.0).astype(jnp.float32))
+
+
+def min_box_obstacle_margin(x: jax.Array, sys: Any) -> jax.Array:
+    margins = box_obstacle_margins(x, sys)
+    if margins.shape[-1] == 0:
+        return jnp.asarray(jnp.inf, dtype=jnp.asarray(x).dtype)
+    return jnp.min(margins)
 
 
 def final_goal_distances(x: jax.Array, sys: Any, xbar: jax.Array) -> jax.Array:
@@ -175,6 +197,7 @@ def build_loss_context(*, system: SystemSpec, xbar: Array) -> LossContext:
         collision_security_margin=system.collision_security_margin,
         bounds=system.bounds,
         obstacles=system.obstacles,
+        box_obstacles=system.box_obstacles,
         obstacle_threshold_per_agent=system.obstacle_threshold_per_agent,
         pre_stab_mode=system.pre_stab_mode,
         pre_stab_control_indices=system.pre_stab_control_indices,

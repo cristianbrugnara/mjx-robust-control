@@ -1,0 +1,202 @@
+{
+  "name": "crazyflies4_3d_medium",
+  "description": "Four Menagerie Bitcraze Crazyflie 2 quadrotors in a two-way crossing task through broad soft gates and floating hazards.",
+  "n_agents": 4,
+  "dof_per_entity": 6,
+  "qpos_dim_per_entity": 7,
+  "qvel_dim_per_entity": 6,
+  "controls_per_entity": 4,
+  "position_indices": [0, 1, 2],
+  "quaternion_indices_per_entity": [[3, 4, 5, 6]],
+  "state_labels_per_entity": ["x", "y", "z", "qw", "qx", "qy", "qz", "vx", "vy", "vz", "wx", "wy", "wz"],
+  "control_labels_per_entity": ["collective_thrust", "roll_cmd", "pitch_cmd", "yaw_rate_cmd"],
+  "policy_control_low": [
+    0.0, -0.45, -0.45, -1.2,
+    0.0, -0.45, -0.45, -1.2,
+    0.0, -0.45, -0.45, -1.2,
+    0.0, -0.45, -0.45, -1.2
+  ],
+  "policy_control_high": [
+    0.35, 0.45, 0.45, 1.2,
+    0.35, 0.45, 0.45, 1.2,
+    0.35, 0.45, 0.45, 1.2,
+    0.35, 0.45, 0.45, 1.2
+  ],
+  "control_interface": {
+    "type": "quadrotor_attitude_mixer",
+    "params": {
+      "arm_length": 0.0325,
+      "yaw_reaction_coeff": 0.000057,
+      "roll_kp": 0.0004,
+      "roll_kd": 0.00016,
+      "pitch_kp": 0.0004,
+      "pitch_kd": 0.00016,
+      "yaw_rate_kp": 0.00005,
+      "rotor_min": 0.0,
+      "rotor_max": 0.0875,
+      "quaternion_indices": [3, 4, 5, 6],
+      "omega_indices": [10, 11, 12],
+
+      "pre_stab_kp_xy": 0.08,
+      "pre_stab_kd_xy": 0.16,
+      "pre_stab_kp_z": 0.18,
+      "pre_stab_kd_z": 0.07,
+      "pre_stab_max_tilt": 0.10,
+      "pre_stab_max_thrust_delta": 0.055,
+      "pre_stab_kp_yaw": 0.7,
+      "pre_stab_max_yaw_rate": 1.0
+    }
+  },
+  "x0": [
+    -0.72, -0.82, 0.18, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+     0.24, -0.86, 0.30, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    -0.24,  0.90, 0.52, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+     0.72,  0.82, 0.40, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+  ],
+  "xbar": [
+     0.72,  0.86, 0.50, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    -0.24,  0.90, 0.34, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+     0.24, -0.86, 0.56, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    -0.72, -0.82, 0.36, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+  ],
+  "q_diag_per_entity": [222.22, 240.0, 311.11, 0.0, 2.2, 2.2, 1.1, 45.0, 45.0, 70.0, 1.25, 1.25, 0.85],
+  "init_noise_mask_per_entity": [0.042, 0.036, 0.018, 0.0, 0.035, 0.035, 0.035, 0.006, 0.006, 0.0045, 0.03, 0.03, 0.035],
+  "t_end": 360,
+  "learning_rate": 3e-5,
+  "epochs": 12000,
+  "n_xi": 24,
+  "l": 24,
+  "n_traj": 8,
+  "std_ini": 0.25,
+  "min_dist": 0.1125,
+  "agent_radius": 0.051,
+  "collision_security_margin": 0.03,
+  "bounds": [-0.95, 0.95, -1.05, 1.05, 0.055, 0.82],
+  "obstacles": [
+    {"center": [-0.55, -0.44, 0.30], "radii": [0.120, 0.090, 0.075], "weight": 1.0},
+    {"center": [0.55, -0.44, 0.52], "radii": [0.120, 0.090, 0.075], "weight": 1.0},
+    {"center": [-0.18, -0.08, 0.47], "radii": [0.100, 0.075, 0.090], "weight": 1.0},
+    {"center": [0.18, 0.20, 0.36], "radii": [0.100, 0.075, 0.090], "weight": 1.0},
+    {"center": [-0.55, 0.42, 0.34], "radii": [0.130, 0.100, 0.080], "weight": 1.0},
+    {"center": [0.55, 0.42, 0.54], "radii": [0.130, 0.100, 0.080], "weight": 1.0}
+  ],
+  "box_obstacles": [
+    {"center": [-0.82, 0.0, 0.43], "half_extents": [0.12, 0.13, 0.34], "clearance": 0.012, "weight": 1.0},
+    {"center": [0.0, 0.0, 0.43], "half_extents": [0.15, 0.13, 0.34], "clearance": 0.012, "weight": 1.0},
+    {"center": [0.82, 0.0, 0.43], "half_extents": [0.12, 0.13, 0.34], "clearance": 0.012, "weight": 1.0}
+  ],
+  "obstacle_threshold_per_agent": 0.006,
+  "pre_stab_K": 0.05,
+  "pre_stab_mode": "quadrotor_position",
+  "pre_stab_control_indices": [],
+  "output_amplification": 0.02,
+  "psi_u_inner_output_gain": 12.0,
+  "std_ini_param": 0.003,
+  "use_sp": false,
+  "qpos_idx": null,
+  "qvel_idx": null,
+  "qvel_disturbance": {
+    "std": 0.012,
+    "mask_per_entity": [1.0, 1.0, 0.5, 0.0, 0.0, 0.0]
+  },
+  "control_center": [
+    0.26487, 0.0, 0.0, 0.0,
+    0.26487, 0.0, 0.0, 0.0,
+    0.26487, 0.0, 0.0, 0.0,
+    0.26487, 0.0, 0.0, 0.0
+  ],
+  "task": {
+    "controller_inputs": [
+      {
+        "type": "imc_residual",
+        "scale": 1.0,
+        "clip": null,
+        "params": {}
+      }
+    ],
+    "cost_terms": [
+      {
+        "type": "state_l2",
+        "weight": 1.0,
+        "where": "running",
+        "params": {
+          "target": "xbar",
+          "use_Q": true
+        }
+      },
+      {
+        "type": "state_l2",
+        "weight": 8.0,
+        "where": "terminal",
+        "params": {
+          "target": "xbar",
+          "use_Q": true
+        }
+      },
+      {
+        "type": "control_l2",
+        "weight": 0.00005,
+        "where": "running",
+        "params": {}
+      },
+      {
+        "type": "pairwise_distance_barrier",
+        "weight": 4.0,
+        "where": "running",
+        "params": {
+          "min_dist": 0.1125
+        }
+      },
+      {
+        "type": "ellipsoid_obstacle",
+        "weight": 2200.0,
+        "where": "running",
+        "params": {}
+      },
+      {
+        "type": "box_obstacle",
+        "weight": 4000.0,
+        "where": "running",
+        "params": {}
+      },
+      {
+        "type": "box_bounds",
+        "weight": 2400.0,
+        "where": "running",
+        "params": {}
+      }
+    ],
+    "metrics": [
+      {
+        "type": "collisions",
+        "name": "mean_collisions",
+        "params": {}
+      },
+      {
+        "type": "obstacle_violations",
+        "name": "mean_obstacle_violations",
+        "params": {}
+      },
+      {
+        "type": "min_obstacle_margin",
+        "name": "min_obstacle_margin",
+        "params": {}
+      },
+      {
+        "type": "box_obstacle_violations",
+        "name": "mean_box_obstacle_violations",
+        "params": {}
+      },
+      {
+        "type": "min_box_obstacle_margin",
+        "name": "min_box_obstacle_margin",
+        "params": {}
+      },
+      {
+        "type": "final_goal_distance",
+        "name": "mean_final_goal_distance",
+        "params": {}
+      }
+    ]
+  }
+}

@@ -16,6 +16,7 @@ from mujoco import mjx
 
 from jax_loss_functions import (
     f_loss_ca,
+    f_loss_box_obst,
     f_loss_obst,
     f_loss_side,
     f_loss_states,
@@ -46,6 +47,7 @@ class LossContext(eqx.Module):
     collision_security_margin: float = eqx.field(static=True, default=0.2)
     bounds: tuple[float, float, float, float] | None = eqx.field(static=True, default=None)
     obstacles: tuple[Any, ...] = eqx.field(static=True, default=())
+    box_obstacles: tuple[Any, ...] = eqx.field(static=True, default=())
     obstacle_threshold_per_agent: float = eqx.field(static=True, default=0.0)
 
     pre_stab_mode: str = eqx.field(static=True, default="none")
@@ -383,6 +385,9 @@ def _cost_term_value(
 
     if term_type == "ellipsoid_obstacle":
         return f_loss_obst(x, sys=config.loss_context)
+
+    if term_type == "box_obstacle":
+        return f_loss_box_obst(x, sys=config.loss_context)
 
     if term_type == "box_bounds":
         return f_loss_side(x, sys=config.loss_context)

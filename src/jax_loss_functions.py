@@ -149,6 +149,58 @@ def f_loss_obst(x: jax.Array, sys: Any | None = None, n_agents: int = 1) -> jax.
     return jnp.where(qq > threshold, qq, jnp.asarray(0.0, dtype=x.dtype))
 
 
+def box_obstacle_signed_distances(x: jax.Array, sys: Any | None = None) -> jax.Array:
+    """Signed distances from agent positions to expanded axis-aligned boxes.
+
+    Negative means the agent center is inside the obstacle plus agent radius and
+    configured clearance.
+    """
+    if sys is None:
+        return jnp.full((0, 0), jnp.inf, dtype=x.dtype)
+
+    boxes = tuple(getattr(sys, "box_obstacles", ()))
+    q = positions_from_state(x, sys)
+    if len(boxes) == 0:
+        return jnp.full((q.shape[0], 0), jnp.inf, dtype=q.dtype)
+
+    centers = jnp.asarray([obs.center for obs in boxes], dtype=q.dtype)
+    half_extents = jnp.asarray([obs.half_extents for obs in boxes], dtype=q.dtype)
+    clearances = jnp.asarray([getattr(obs, "clearance", 0.0) for obs in boxes], dtype=q.dtype)
+    agent_radius = jnp.asarray(float(getattr(sys, "agent_radius", 0.0)), dtype=q.dtype)
+    expanded = half_extents + (agent_radius + clearances)[:, None]
+
+    delta = jnp.abs(q[:, None, :] - centers[None, :, :]) - expanded[None, :, :]
+    outside = jax.nn.relu(delta)
+    outside_distance = jnp.linalg.norm(outside, axis=-1)
+    inside_distance = jnp.minimum(jnp.max(delta, axis=-1), 0.0)
+    return outside_distance + inside_distance
+
+
+def f_loss_box_obst(x: jax.Array, sys: Any | None = None) -> jax.Array:
+    """Smooth axis-aligned box obstacle training loss."""
+    if sys is None:
+        return jnp.asarray(0.0, dtype=x.dtype)
+
+    boxes = tuple(getattr(sys, "box_obstacles", ()))
+    if len(boxes) == 0:
+        return jnp.asarray(0.0, dtype=x.dtype)
+
+    q = positions_from_state(x, sys)
+    centers = jnp.asarray([obs.center for obs in boxes], dtype=q.dtype)
+    half_extents = jnp.asarray([obs.half_extents for obs in boxes], dtype=q.dtype)
+    clearances = jnp.asarray([getattr(obs, "clearance", 0.0) for obs in boxes], dtype=q.dtype)
+    agent_radius = jnp.asarray(float(getattr(sys, "agent_radius", 0.0)), dtype=q.dtype)
+    expanded = half_extents + (agent_radius + clearances)[:, None]
+
+    z = (q[:, None, :] - centers[None, :, :]) / expanded[None, :, :]
+    smooth_abs = jnp.sqrt(z * z + jnp.asarray(1.0e-12, dtype=q.dtype))
+    smooth_level = jax.nn.logsumexp(16.0 * smooth_abs, axis=-1) / 16.0
+    bump = jnp.exp(-(smooth_level**4.0))
+    inside = jax.nn.softplus(20.0 * (1.0 - smooth_level)) / 20.0
+    weights = jnp.asarray([getattr(obs, "weight", 1.0) for obs in boxes], dtype=x.dtype)
+    return jnp.sum((bump + inside**2) * weights[None, :])
+
+
 def f_loss_side(x: jax.Array, sys: Any | None = None) -> jax.Array:
     """Soft box-boundary loss for agent positions."""
     if sys is None or getattr(sys, "bounds", None) is None:
@@ -170,7 +222,9 @@ __all__ = [
     "f_loss_u",
     "f_loss_ca",
     "f_loss_obst",
+    "f_loss_box_obst",
     "f_loss_side",
+    "box_obstacle_signed_distances",
     "quaternion_error",
     "state_error_with_quaternions",
 ]

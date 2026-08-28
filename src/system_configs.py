@@ -38,6 +38,16 @@ class ObstacleSpec:
 
 
 @dataclass(frozen=True)
+class BoxObstacleSpec:
+    """Axis-aligned box obstacle used by differentiable task loss and metrics."""
+
+    center: tuple[float, ...]
+    half_extents: tuple[float, ...]
+    clearance: float = 0.0
+    weight: float = 1.0
+
+
+@dataclass(frozen=True)
 class QVelDisturbanceSpec:
     """Optional per-step Gaussian qvel disturbance applied during MJX rollout."""
 
@@ -209,6 +219,7 @@ _VALID_COST_TERMS = {
     "control_l2",
     "pairwise_distance_barrier",
     "ellipsoid_obstacle",
+    "box_obstacle",
     "box_bounds",
     "road_network",
     "heading_to_goal",
@@ -276,6 +287,7 @@ class SystemSpec:
     psi_u_inner_output_gain: float
     std_ini_param: float
     use_sp: bool = False
+    box_obstacles: tuple[BoxObstacleSpec, ...] = ()
 
     qpos_idx: tuple[int, ...] | None = None
     qvel_idx: tuple[int, ...] | None = None
@@ -347,6 +359,15 @@ class SystemSpec:
                 weight=float(obs.get("weight", 1.0)),
             )
             for obs in raw.get("obstacles", ())
+        )
+        raw["box_obstacles"] = tuple(
+            obs if isinstance(obs, BoxObstacleSpec) else BoxObstacleSpec(
+                center=tuple(float(v) for v in obs["center"]),
+                half_extents=tuple(float(v) for v in obs["half_extents"]),
+                clearance=float(obs.get("clearance", 0.0)),
+                weight=float(obs.get("weight", 1.0)),
+            )
+            for obs in raw.get("box_obstacles", ())
         )
         for _removed in (
             "alpha_x", "alpha_u", "alpha_ca", "alpha_obst", "alpha_side", "alpha_barrier",
@@ -448,6 +469,15 @@ class SystemSpec:
                 )
             if any(r <= 0.0 for r in obs.radii):
                 raise ValueError(f"System '{self.name}' obstacle radii must be positive.")
+        for obs in self.box_obstacles:
+            if len(obs.center) != len(self.position_indices) or len(obs.half_extents) != len(self.position_indices):
+                raise ValueError(
+                    f"System '{self.name}' box_obstacle dimensions must match position_indices."
+                )
+            if any(r <= 0.0 for r in obs.half_extents):
+                raise ValueError(f"System '{self.name}' box_obstacle half_extents must be positive.")
+            if obs.clearance < 0.0:
+                raise ValueError(f"System '{self.name}' box_obstacle clearance must be non-negative.")
         for block in self.quaternion_indices_per_entity:
             if len(block) != 4:
                 raise ValueError(
@@ -590,6 +620,7 @@ def save_system_spec(spec: SystemSpec, path: str | Path) -> None:
 
 __all__ = [
     "ControlInterfaceSpec",
+    "BoxObstacleSpec",
     "ControllerInputSpec",
     "CostTermSpec",
     "MetricSpec",
