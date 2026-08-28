@@ -151,7 +151,16 @@ Then
 and
 
 ```math
-k^\star
+k^-
+=
+\left\lceil
+m_{\mathrm{cert}}
+\left(
+1-\alpha-\epsilon_{m_{\mathrm{cert}}}
+\right)
+\right\rceil,
+\qquad
+k^+
 =
 \left\lceil
 m_{\mathrm{cert}}
@@ -161,13 +170,13 @@ m_{\mathrm{cert}}
 \right\rceil.
 ```
 
-If $k^\star \leq m_{\mathrm{cert}}$, the certified threshold is $\Psi^{(k^\star)}$. With confidence at least $1-\delta$, a new rollout $D_{\mathrm{new}}\sim p(D)$ satisfies
+If $1 \leq k^- \leq k^+ \leq m_{\mathrm{cert}}$, the certified upper threshold is $\Psi^{(k^+)}$, with $\Psi^{(k^-)}$ recorded as the lower DKWM quantile-side threshold. With confidence at least $1-\delta$, a new rollout $D_{\mathrm{new}}\sim p(D)$ satisfies
 
 ```math
 \Pr\left(
 \Psi(D_{\mathrm{new}};K^\star)
 \leq
-\Psi^{(k^\star)}
+\Psi^{(k^+)}
 \right)
 \geq
 1-\alpha.
@@ -213,7 +222,7 @@ jax_models.py (REN)  ──►  jax_rollout.py  ◄──  jax_loss_functions.py
 | `robust_objectives.py`   | Scalar objectives over a batch of rollout costs (mean, CVaR, pinball, …)         |
 | `train.py`               | Training loop: vmapped rollouts → robust objective → Optax update               |
 | `evaluate.py`            | Held-out evaluation; writes trajectories/costs/summary                            |
-| `certify.py`             | Distribution-free certification via Theorem 1 (DKW confidence bound)              |
+| `certify.py`             | Distribution-free DKWM conformal quantile certification                           |
 | `visualize.py`           | MuJoCo GUI replay with trace overlays; optional video export                      |
 | `check_compatibility.py` | CLI: verify an XML + JSON pair loads cleanly and print resolved dims              |
 

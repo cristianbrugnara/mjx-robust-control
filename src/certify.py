@@ -1,7 +1,7 @@
 """
 Probabilistic certification. Evaluates a trained controller on a held-out
 certification set, sorts rollout costs, computes the DKW confidence radius epsilon_m and
-the order statistic index k_star, and produces a distribution-free cost threshold with
+the order statistic indices k_minus/k_plus, and produces a distribution-free cost threshold with
 confidence 1-delta.
 """
 
@@ -19,6 +19,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 import numpy as np
 
 import equinox as eqx
@@ -43,12 +44,19 @@ from system_configs import apply_mjx_model_options
 
 DEFAULT_OBJECTIVES = ("mean", "cvar", "pinball", "softmax", "worst_case")
 
+K_MINUS_LINESTYLE = ":"
+K_PLUS_LINESTYLE = "--"
+COVERAGE_LINESTYLE = "-."
+COVERAGE_COLOR = "0.25"
+
 
 @dataclass(frozen=True)
 class CertificationResult:
     threshold: float
+    lower_threshold: float
     epsilon_m: float
-    k_star: int
+    k_minus: int
+    k_plus: int
     m: int
     alpha: float
     delta: float
@@ -63,8 +71,17 @@ def epsilon_m(m: int, delta: float) -> float:
     return math.sqrt(math.log(2.0 / delta) / (2.0 * float(m)))
 
 
-def k_star(m: int, alpha: float, eps: float) -> int:
-    """Order statistic index used by the certificate."""
+def k_minus(m: int, alpha: float, eps: float) -> int:
+    """Lower order-statistic index from the DKWM quantile band."""
+    if m <= 0:
+        raise ValueError("m must be positive.")
+    if not (0.0 < alpha < 1.0):
+        raise ValueError("alpha must be in (0, 1).")
+    return int(math.ceil(float(m) * (1.0 - float(alpha) - float(eps))))
+
+
+def k_plus(m: int, alpha: float, eps: float) -> int:
+    """Upper order-statistic index used for the certified threshold."""
     if m <= 0:
         raise ValueError("m must be positive.")
     if not (0.0 < alpha < 1.0):
@@ -72,21 +89,26 @@ def k_star(m: int, alpha: float, eps: float) -> int:
     return int(math.ceil(float(m) * (1.0 - float(alpha) + float(eps))))
 
 
-def theorem1_threshold(values: Iterable[float], *, alpha: float, delta: float) -> CertificationResult:
-    """Certify a cost threshold from calibration samples."""
+def dkwm_quantile_threshold(values: Iterable[float], *, alpha: float, delta: float) -> CertificationResult:
+    """Certify DKWM upper/lower quantile thresholds from calibration samples."""
     vals = sorted(float(v) for v in values)
     m = len(vals)
+    if not all(math.isfinite(v) for v in vals):
+        raise ValueError("calibration values must be finite.")
     eps = epsilon_m(m, delta)
-    ks = k_star(m, alpha, eps)
-    if ks > m or alpha < eps:
+    km = k_minus(m, alpha, eps)
+    kp = k_plus(m, alpha, eps)
+    if kp > m or km < 1 or eps > alpha or eps > 1.0 - alpha:
         raise ValueError(
             "sample-size condition failed: "
-            f"m={m}, k_star={ks}, alpha={alpha:.6g}, epsilon_m={eps:.6g}. "
+            f"m={m}, k_minus={km}, k_plus={kp}, alpha={alpha:.6g}, epsilon_m={eps:.6g}. "
         )
     return CertificationResult(
-        threshold=float(vals[ks - 1]),
+        threshold=float(vals[kp - 1]),
+        lower_threshold=float(vals[km - 1]),
         epsilon_m=float(eps),
-        k_star=int(ks),
+        k_minus=int(km),
+        k_plus=int(kp),
         m=int(m),
         alpha=float(alpha),
         delta=float(delta),
@@ -313,13 +335,27 @@ def save_selected_trajectory_file(
 
 def plot_thresholds(run_dir: Path, summaries: list[dict[str, Any]]) -> None:
     names = [item["objective"] for item in summaries]
-    thresholds = [float(item["threshold"]) for item in summaries]
+    lower_thresholds = [float(item["lower_threshold"]) for item in summaries]
+    upper_thresholds = [float(item["threshold"]) for item in summaries]
+    xs = np.arange(len(names))
     fig, ax = plt.subplots(figsize=(max(6.0, 1.1 * len(names)), 4.0))
-    ax.bar(range(len(names)), thresholds)
-    ax.set_xticks(range(len(names)))
+    colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+    for idx, (x, lower, upper) in enumerate(zip(xs, lower_thresholds, upper_thresholds)):
+        color = colors[idx % len(colors)]
+        ax.vlines(x, lower, upper, color=color, linewidth=2.0, alpha=0.65)
+        ax.scatter(x, lower, color=color, marker="_", s=170, linewidths=2.0)
+        ax.scatter(x, upper, color=color, marker="o", s=36)
+    ax.set_xticks(xs)
     ax.set_xticklabels(names, rotation=25, ha="right")
-    ax.set_ylabel("certified threshold")
-    ax.set_title("Theorem 1 thresholds")
+    ax.set_ylabel("threshold")
+    ax.set_title("DKWM k-/k+ quantile thresholds")
+    ax.legend(
+        handles=[
+            Line2D([0], [0], color="black", marker="_", linestyle="None", markersize=12, markeredgewidth=2.0),
+            Line2D([0], [0], color="black", marker="o", linestyle="None", markersize=6),
+        ],
+        labels=["k- lower quantile-side threshold", "k+ certified threshold"],
+    )
     fig.tight_layout()
     fig.savefig(run_dir / "thresholds.png", dpi=160)
     plt.close(fig)
@@ -329,6 +365,16 @@ def empirical_cdf(values: Any, grid: Any) -> Any:
     vals = np.asarray(values).reshape(1, -1)
     t_grid = np.asarray(grid).reshape(-1, 1)
     return (vals <= t_grid).mean(axis=1)
+
+
+def _order_statistic_level(item: dict[str, Any], key: str) -> float | None:
+    if key not in item or "m_cert" not in item:
+        return None
+    k = int(item[key])
+    m = int(item["m_cert"])
+    if m <= 0 or k < 1 or k > m:
+        return None
+    return float(k) / float(m)
 
 
 def plot_cdfs(run_dir: Path, summaries: list[dict[str, Any]]) -> None:
@@ -353,12 +399,61 @@ def plot_cdfs(run_dir: Path, summaries: list[dict[str, Any]]) -> None:
             alpha=0.10,
             color=line.get_color(),
         )
-        ax.axvline(float(item["threshold"]), color=line.get_color(), linestyle="--", alpha=0.45)
-    ax.axhline(1.0 - float(summaries[0]["alpha"]), color="black", linestyle=":", alpha=0.8)
+        ax.axvline(
+            float(item["lower_threshold"]),
+            color=line.get_color(),
+            linestyle=K_MINUS_LINESTYLE,
+            linewidth=1.4,
+            alpha=0.55,
+        )
+        ax.axvline(
+            float(item["threshold"]),
+            color=line.get_color(),
+            linestyle=K_PLUS_LINESTYLE,
+            linewidth=1.8,
+            alpha=0.85,
+        )
+        k_minus_level = _order_statistic_level(item, "k_minus")
+        if k_minus_level is not None:
+            ax.scatter(
+                [float(item["lower_threshold"])],
+                [k_minus_level],
+                color=line.get_color(),
+                marker="_",
+                s=130,
+                linewidths=1.8,
+                zorder=4,
+            )
+        k_plus_level = _order_statistic_level(item, "k_plus")
+        if k_plus_level is not None:
+            ax.scatter(
+                [float(item["threshold"])],
+                [k_plus_level],
+                color=line.get_color(),
+                marker="o",
+                s=28,
+                zorder=4,
+            )
+    ax.axhline(
+        1.0 - float(summaries[0]["alpha"]),
+        color=COVERAGE_COLOR,
+        linestyle=COVERAGE_LINESTYLE,
+        linewidth=1.3,
+        alpha=0.85,
+    )
     ax.set_xlabel("threshold t")
     ax.set_ylabel("empirical CDF on cert set")
-    ax.set_title("Certification CDFs with DKW bands")
-    ax.legend()
+    ax.set_title("Certification CDFs with DKWM bands")
+    handles, labels = ax.get_legend_handles_labels()
+    handles.extend(
+        [
+            Line2D([0], [0], color="black", linestyle=":", alpha=0.55),
+            Line2D([0], [0], color="black", linestyle="--", alpha=0.85),
+            Line2D([0], [0], color=COVERAGE_COLOR, linestyle=COVERAGE_LINESTYLE, alpha=0.85),
+        ]
+    )
+    labels.extend(["k- lower quantile-side threshold", "k+ certified threshold", "1-alpha coverage level"])
+    ax.legend(handles=handles, labels=labels)
     fig.tight_layout()
     fig.savefig(run_dir / "cert_cdfs.png", dpi=160)
     plt.close(fig)
@@ -367,10 +462,60 @@ def plot_cdfs(run_dir: Path, summaries: list[dict[str, Any]]) -> None:
         fhat = empirical_cdf(costs, grid)
         eps = float(item["epsilon_m"])
         fig, ax = plt.subplots(figsize=(6.5, 4.0))
-        ax.plot(grid, fhat, label="empirical CDF")
-        ax.fill_between(grid, np.clip(fhat - eps, 0.0, 1.0), np.clip(fhat + eps, 0.0, 1.0), alpha=0.18)
-        ax.axvline(float(item["threshold"]), color="black", linestyle="--", label="cert threshold")
-        ax.axhline(1.0 - float(item["alpha"]), color="black", linestyle=":", label="1-alpha")
+        line = ax.plot(grid, fhat, label="empirical CDF")[0]
+        color = line.get_color()
+        ax.fill_between(
+            grid,
+            np.clip(fhat - eps, 0.0, 1.0),
+            np.clip(fhat + eps, 0.0, 1.0),
+            alpha=0.18,
+            color=color,
+        )
+        ax.axvline(
+            float(item["lower_threshold"]),
+            color=color,
+            linestyle=K_MINUS_LINESTYLE,
+            linewidth=1.4,
+            alpha=0.65,
+            label="k- lower quantile-side threshold",
+        )
+        ax.axvline(
+            float(item["threshold"]),
+            color=color,
+            linestyle=K_PLUS_LINESTYLE,
+            linewidth=1.8,
+            alpha=0.90,
+            label="k+ certified threshold",
+        )
+        ax.axhline(
+            1.0 - float(item["alpha"]),
+            color=COVERAGE_COLOR,
+            linestyle=COVERAGE_LINESTYLE,
+            linewidth=1.3,
+            alpha=0.85,
+            label="1-alpha coverage level",
+        )
+        k_minus_level = _order_statistic_level(item, "k_minus")
+        if k_minus_level is not None:
+            ax.scatter(
+                [float(item["lower_threshold"])],
+                [k_minus_level],
+                color=color,
+                marker="_",
+                s=130,
+                linewidths=1.8,
+                zorder=4,
+            )
+        k_plus_level = _order_statistic_level(item, "k_plus")
+        if k_plus_level is not None:
+            ax.scatter(
+                [float(item["threshold"])],
+                [k_plus_level],
+                color=color,
+                marker="o",
+                s=28,
+                zorder=4,
+            )
         ax.set_xlabel("threshold t")
         ax.set_ylabel("empirical CDF on cert set")
         ax.set_title(f"{item['objective']} certification CDF")
@@ -421,7 +566,7 @@ def run_objective(objective: str, *, run_dir: Path, args: argparse.Namespace) ->
     save_rollout_bundle(out_dir=out_dir, prefix="cert", result=cert_result)
     save_rollout_bundle(out_dir=out_dir, prefix="eval", result=eval_result)
 
-    cert = theorem1_threshold(cert_result["costs"], alpha=float(args.alpha), delta=float(args.delta))
+    cert = dkwm_quantile_threshold(cert_result["costs"], alpha=float(args.alpha), delta=float(args.delta))
     respect, violate = split_pass_fail(eval_result["costs"], cert.threshold)
     selected_respect = select_examples(
         respect,
@@ -459,7 +604,9 @@ def run_objective(objective: str, *, run_dir: Path, args: argparse.Namespace) ->
         "m_cert": int(args.m_cert),
         "n_eval": int(args.n_eval),
         "epsilon_m": float(cert.epsilon_m),
-        "k_star": int(cert.k_star),
+        "k_minus": int(cert.k_minus),
+        "k_plus": int(cert.k_plus),
+        "lower_threshold": float(cert.lower_threshold),
         "threshold": float(cert.threshold),
         "eval_respect_count": int(len(respect)),
         "eval_violate_count": int(len(violate)),
@@ -489,7 +636,8 @@ def run_objective(objective: str, *, run_dir: Path, args: argparse.Namespace) ->
     }
     json_dump(out_dir / "certification_summary.json", summary)
     print(
-        f"[{objective}] threshold={cert.threshold:.6g} "
+        f"[{objective}] k-={cert.k_minus} lower={cert.lower_threshold:.6g} "
+        f"k+={cert.k_plus} threshold={cert.threshold:.6g} "
         f"eval_respect_fraction={summary['eval_respect_fraction']:.3f} "
         f"violations={len(violate)}"
     )
@@ -542,7 +690,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     """Run certification for the requested objectives and save plots and summaries."""
     args = parse_args()
-    theorem1_threshold([0.0] * int(args.m_cert), alpha=float(args.alpha), delta=float(args.delta))
+    dkwm_quantile_threshold([0.0] * int(args.m_cert), alpha=float(args.alpha), delta=float(args.delta))
 
     run_name = args.run_name or f"{args.sys_model}_seed{args.seed}"
     run_dir = args.output_dir / run_name
