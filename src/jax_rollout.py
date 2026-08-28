@@ -966,6 +966,36 @@ def rollout_with_trajectory(
     return total, outputs["x"], outputs["u"]
 
 
+def rollout_with_trajectory_and_actuators(
+    controller_params: Any,
+    mjx_model: mjx.Model,
+    data_init: RolloutCarry,
+    t_end: int,
+    loss_weights: RolloutConfig,
+    qvel_disturbances: jax.Array | None = None,
+) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
+    def scan_body(carry: RolloutCarry, t: jax.Array):
+        return _scan_step(
+            controller_params,
+            mjx_model,
+            loss_weights,
+            carry,
+            t,
+            qvel_disturbances,
+        )
+
+    final_carry, outputs = jax.lax.scan(scan_body, data_init, jnp.arange(t_end))
+    running = jnp.mean(outputs["loss"])
+    x_final = _extract_final_state(final_carry, loss_weights)
+    total = running + terminal_loss(
+        t_end,
+        x_final,
+        loss_weights,
+        data_final=final_carry[0],
+    )
+    return total, outputs["x"], outputs["u"], outputs["u_actuator"]
+
+
 __all__ = [
     "LossContext",
     "RolloutConfig",
@@ -979,6 +1009,7 @@ __all__ = [
     "_quadrotor_policy_to_wrench_actuators",
     "rollout",
     "rollout_with_trajectory",
+    "rollout_with_trajectory_and_actuators",
     "squash_or_clip_control",
     "state_to_qpos_qvel",
     "step_loss",

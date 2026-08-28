@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import time
 import warnings
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
@@ -23,7 +24,7 @@ from mujoco import mjx
 from jax_models import Controller
 from jax_rollout import (
     RolloutConfig,
-    rollout_with_trajectory,
+    rollout_with_trajectory_and_actuators,
 )
 from system_configs import (
     SystemSpec,
@@ -49,6 +50,8 @@ from workflow_utils import (
     sample_qvel_disturbances,
 )
 
+
+TIMING_QUANTILE_KEYS = ("p05", "p25", "p50", "p75", "p95")
 
 
 @dataclass(frozen=True)
@@ -370,6 +373,43 @@ def build_controller_skeleton(spec: EvalSpec, mj_model: mujoco.MjModel) -> Contr
     )
 
 
+def control_diagnostics(controls: np.ndarray) -> dict[str, np.ndarray]:
+    controls = np.asarray(controls)
+    if controls.ndim != 3:
+        raise ValueError(f"Expected controls with shape (rollouts, time, control_dim), got {controls.shape}.")
+    control_rms = np.sqrt(np.mean(np.square(controls), axis=(1, 2)))
+    if controls.shape[1] < 2:
+        control_delta = np.zeros((controls.shape[0], 0, controls.shape[2]), dtype=controls.dtype)
+    else:
+        control_delta = np.diff(controls, axis=1)
+    if control_delta.shape[1] == 0:
+        control_delta_rms = np.zeros((controls.shape[0],), dtype=controls.dtype)
+        peak_control_delta = np.zeros((controls.shape[0],), dtype=controls.dtype)
+    else:
+        control_delta_norm = np.linalg.norm(control_delta, axis=-1)
+        control_delta_rms = np.sqrt(np.mean(np.square(control_delta), axis=(1, 2)))
+        peak_control_delta = np.max(control_delta_norm, axis=1)
+    return {
+        "control_rms": control_rms,
+        "control_delta_rms": control_delta_rms,
+        "peak_control_delta": peak_control_delta,
+    }
+
+
+def finite_quantile_summary(values: list[float] | np.ndarray) -> dict[str, float | None]:
+    finite = np.asarray(values, dtype=np.float64)
+    finite = finite[np.isfinite(finite)]
+    if finite.size == 0:
+        return {key: None for key in TIMING_QUANTILE_KEYS}
+    return {
+        "p05": float(np.percentile(finite, 5)),
+        "p25": float(np.percentile(finite, 25)),
+        "p50": float(np.percentile(finite, 50)),
+        "p75": float(np.percentile(finite, 75)),
+        "p95": float(np.percentile(finite, 95)),
+    }
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--xml_path", type=str, required=True)
@@ -392,6 +432,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--no_control_squash", dest="control_squash", action="store_false")
     parser.add_argument("--control_margin", type=float, default=None)
     parser.add_argument("--alpha_terminal", type=float, default=None)
+    parser.add_argument("--timing_only", action="store_true", help="Only benchmark fixed validation rollouts.")
+    parser.add_argument("--timing_repeats", type=int, default=10, help="Repeated timed validation sweeps.")
     return parser.parse_args()
 
 
@@ -455,7 +497,7 @@ def main() -> None:
     def single_eval(
         x_real0: jax.Array,
         qvel_disturbances: jax.Array,
-    ) -> tuple[jax.Array, jax.Array, jax.Array]:
+    ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
         data_init = build_data_init(
             data_template,
             x_real0,
@@ -467,7 +509,7 @@ def main() -> None:
             qpos_dim_per_entity=spec.system.qpos_dim_per_entity_resolved,
             qvel_dim_per_entity=spec.system.qvel_dim_per_entity_resolved,
         )
-        return rollout_with_trajectory(
+        return rollout_with_trajectory_and_actuators(
             controller,
             mjx_model,
             data_init,
@@ -480,33 +522,99 @@ def main() -> None:
     eval_batch_size = int(args.eval_batch_size or args.n_rollouts)
     if eval_batch_size <= 0:
         raise ValueError("--eval_batch_size must be positive.")
+    if int(args.n_rollouts) <= 0:
+        raise ValueError("--n_rollouts must be positive.")
+    if int(args.timing_repeats) <= 0:
+        raise ValueError("--timing_repeats must be positive.")
+
+    batch_slices = [
+        (start, min(start + eval_batch_size, args.n_rollouts))
+        for start in range(0, args.n_rollouts, eval_batch_size)
+    ]
+
+    def eval_batch(start: int, end: int) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
+        return batched_eval(
+            x0_batch[start:end],
+            qvel_disturbance_batch[start:end],
+        )
+
+    if args.timing_only:
+        for start, end in batch_slices:
+            jax.block_until_ready(eval_batch(start, end))
+
+        sweep_seconds = []
+        for _repeat in range(int(args.timing_repeats)):
+            start_time = time.perf_counter()
+            for start, end in batch_slices:
+                jax.block_until_ready(eval_batch(start, end))
+            sweep_seconds.append(float(time.perf_counter() - start_time))
+
+        n_rollouts = int(args.n_rollouts)
+        rollout_steps = int(n_rollouts * int(spec.t_end))
+        seconds_per_rollout = [float(value / n_rollouts) for value in sweep_seconds]
+        rollouts_per_second = [float(n_rollouts / value) if value > 0.0 else None for value in sweep_seconds]
+        seconds_per_rollout_step = [
+            float(value / rollout_steps) if rollout_steps > 0 else None
+            for value in sweep_seconds
+        ]
+        timing_summary = {
+            "system": spec.system.name,
+            "n_rollouts": n_rollouts,
+            "eval_batch_size": int(eval_batch_size),
+            "t_end": int(spec.t_end),
+            "timing_repeats": int(args.timing_repeats),
+            "platform": jax.default_backend(),
+            "timing_mode": "closed_loop_mjx_rollout",
+            "warmup_excluded": True,
+            "sweep_seconds": sweep_seconds,
+            "validation_set_seconds": sweep_seconds,
+            "seconds_per_rollout": seconds_per_rollout,
+            "rollouts_per_second": rollouts_per_second,
+            "seconds_per_rollout_step": seconds_per_rollout_step,
+            "quantiles": {
+                "validation_set_seconds": finite_quantile_summary(sweep_seconds),
+                "seconds_per_rollout": finite_quantile_summary(seconds_per_rollout),
+                "rollouts_per_second": finite_quantile_summary(rollouts_per_second),
+                "seconds_per_rollout_step": finite_quantile_summary(seconds_per_rollout_step),
+            },
+        }
+        with open(output_dir / "timing_summary.json", "w", encoding="utf-8") as f:
+            json.dump(timing_summary, f, indent=2, allow_nan=False)
+        print(json.dumps(timing_summary, indent=2, allow_nan=False))
+        return
 
     cost_batches = []
     trajectory_batches = []
     control_batches = []
-    for start in range(0, args.n_rollouts, eval_batch_size):
-        end = min(start + eval_batch_size, args.n_rollouts)
-        costs_i, trajectories_i, controls_i = batched_eval(
+    actuator_control_batches = []
+    for start, end in batch_slices:
+        costs_i, trajectories_i, controls_i, actuator_controls_i = batched_eval(
             x0_batch[start:end],
             qvel_disturbance_batch[start:end],
         )
         cost_batches.append(np.asarray(costs_i))
         trajectory_batches.append(np.asarray(trajectories_i))
         control_batches.append(np.asarray(controls_i))
+        actuator_control_batches.append(np.asarray(actuator_controls_i))
 
     costs = np.concatenate(cost_batches, axis=0)
     trajectories = np.concatenate(trajectory_batches, axis=0)
     controls = np.concatenate(control_batches, axis=0)
+    actuator_controls = np.concatenate(actuator_control_batches, axis=0)
 
     trajectories_np = trajectories
     controls_np = controls
+    actuator_controls_np = actuator_controls
     costs_np = costs
+    diagnostics = control_diagnostics(controls_np)
 
     np.save(output_dir / "trajectories.npy", trajectories_np)
     np.save(output_dir / "controls.npy", controls_np)
+    np.save(output_dir / "actuator_controls.npy", actuator_controls_np)
     np.save(output_dir / "costs.npy", costs_np)
     np.save(output_dir / "initial_states.npy", np.asarray(x0_batch))
     np.save(output_dir / "disturbances.npy", np.asarray(qvel_disturbance_batch))
+    np.savez(output_dir / "diagnostics.npz", **diagnostics)
 
     collision_ctx = _CollisionContext(spec.system)
     per_rollout_collisions = np.asarray(
@@ -602,9 +710,19 @@ def main() -> None:
         "control_squash": bool(spec.control_squash),
         "control_min": finite_stat(controls_np, "min"),
         "control_max": finite_stat(controls_np, "max"),
+        "actuator_control_min": finite_stat(actuator_controls_np, "min"),
+        "actuator_control_max": finite_stat(actuator_controls_np, "max"),
+        "mean_control_rms": rollout_stat(diagnostics["control_rms"], "mean"),
+        "max_control_rms": rollout_stat(diagnostics["control_rms"], "max"),
+        "mean_control_delta_rms": rollout_stat(diagnostics["control_delta_rms"], "mean"),
+        "max_control_delta_rms": rollout_stat(diagnostics["control_delta_rms"], "max"),
+        "mean_peak_control_delta": rollout_stat(diagnostics["peak_control_delta"], "mean"),
+        "max_peak_control_delta": rollout_stat(diagnostics["peak_control_delta"], "max"),
         "alpha_terminal": float(spec.alpha_terminal),
         "initial_states_file": "initial_states.npy",
         "disturbances_file": "disturbances.npy",
+        "actuator_controls_file": "actuator_controls.npy",
+        "diagnostics_file": "diagnostics.npz",
         "qvel_disturbance": (
             asdict(spec.system.qvel_disturbance)
             if spec.system.qvel_disturbance is not None else None
